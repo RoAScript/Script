@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calcium</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <div id="calcium-panel" class="calcium-shell">
+    <div class="calcium-header">
+      <div class="calcium-header-actions">
+        <button id="refresh-view-btn" class="calcium-btn calcium-btn-primary">Actualiser</button>
+        <button id="token-refresh-btn" class="calcium-btn calcium-btn-success">Refresh token</button>
+      </div>
+      <div class="calcium-status-row">
+        <span id="status-badge" class="calcium-badge">Chargement…</span>
+        <span id="status-text" class="calcium-status-text">Connexion au tab actif…</span>
+      </div>
+    </div>
+
+    <div class="calcium-main-tabs">
+      <button class="calcium-main-tab active" data-main-tab="datas">Datas</button>
+      <button class="calcium-main-tab" data-main-tab="joueur">Joueur</button>
+    </div>
+
+    <div class="calcium-tab-panel active" data-panel="datas">
+      <div class="calcium-body">
+        <div class="calcium-row calcium-row-between">
+          <strong>📦 Réponses JSON capturées</strong>
+          <span id="ext-data-count" class="calcium-count">0 type(s)</span>
+        </div>
+
+        <div id="ext-filter-tabs" class="calcium-tabs">
+          <button class="ext-filter-tab active" data-filter="all">Tous</button>
+          <button class="ext-filter-tab" data-filter="api">api.*</button>
+          <button class="ext-filter-tab" data-filter="other">autres</button>
+        </div>
+
+        <input
+          id="ext-search-input"
+          class="calcium-input"
+          type="text"
+          placeholder="Recherche globale dans tout le dataset..."
+        />
+
+        <div id="ext-search-summary" class="calcium-search-summary"></div>
+
+        <select id="ext-data-select" class="calcium-select">
+          <option value="">-- Attente des requêtes JSON --</option>
+        </select>
+
+        <div id="ext-selection-meta" class="calcium-selection-meta"></div>
+
+        <div id="ext-empty-state" class="calcium-empty">
+          Aucune donnée visible pour le filtre / la recherche.
+        </div>
+
+        <pre id="ext-data-view" class="calcium-pre"></pre>
+      </div>
+    </div>
+
+    <div class="calcium-tab-panel" data-panel="joueur">
+      <div id="calcium-player-panel" class="calcium-player-panel">
+        <div class="calcium-player-title">Joueur</div>
+        <div class="calcium-player-text">
+          En attente du parsing du dataset...
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="inspector-i18n.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

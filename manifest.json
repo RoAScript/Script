@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Calcium",
+  "version": "0.1",
+  "description": "Outil d'automatisation des actions des RoA",
+  "permissions": [
+    "sidePanel",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.riseofatlantis.fr/"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Calcium"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://*.riseofatlantis.fr/*"],
+      "js": [
+        "inspector-core.js",
+        "inspector-i18n.js",
+        "inspector-ui-main.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": true,
+      "match_origin_as_fallback": true
+    },
+    {
+      "matches": ["https://*.riseofatlantis.fr/*"],
+      "js": [
+        "inspector-ui-bridge.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_origin_as_fallback": true
+    }
+  ]
+}

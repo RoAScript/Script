@@ -1,0 +1,752 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1113;
+  --surface: #17191d;
+  --surface-2: #1c2025;
+  --surface-3: #242931;
+  --border: #2f353e;
+  --text: #e7ebf0;
+  --muted: #9ea7b4;
+  --faint: #727b88;
+  --primary: #4d86ff;
+  --primary-hover: #3c73e2;
+  --success: #29a765;
+  --success-hover: #208451;
+  --warning: #e8b04a;
+  --danger: #d86a6a;
+  --shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  --radius: 7px;
+  --font-size: 10px;
+  --line: 1.25;
+}
+
+* {
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: #39414c transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 500 var(--font-size) / var(--line) Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+code,
+pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.calcium-shell {
+  min-height: 100vh;
+  padding: 6px;
+}
+
+.calcium-header,
+.calcium-body,
+.calcium-player-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.calcium-header {
+  padding: 6px;
+  margin-bottom: 6px;
+}
+
+.calcium-header-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.calcium-status-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.calcium-status-text {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.calcium-main-tabs,
+.calcium-tabs,
+.calcium-player-subtabs {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.calcium-main-tabs {
+  margin-bottom: 6px;
+}
+
+.calcium-main-tab,
+.ext-filter-tab,
+.calcium-player-subtab,
+.calcium-btn {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 6px;
+  min-height: 24px;
+  cursor: pointer;
+  transition: 120ms ease;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+.calcium-btn {
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.calcium-main-tab:hover,
+.ext-filter-tab:hover,
+.calcium-player-subtab:hover,
+.calcium-btn:hover {
+  background: var(--surface-2);
+  border-color: #44505e;
+}
+
+.calcium-main-tab.active,
+.ext-filter-tab.active,
+.calcium-player-subtab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.calcium-btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.calcium-btn-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
+.calcium-btn-success {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.calcium-btn-success:hover {
+  background: var(--success-hover);
+  border-color: var(--success-hover);
+}
+
+.calcium-tab-panel {
+  display: none;
+}
+
+.calcium-tab-panel.active {
+  display: block;
+}
+
+.calcium-body,
+.calcium-player-panel {
+  padding: 6px;
+}
+
+.calcium-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.calcium-row-between {
+  justify-content: space-between;
+}
+
+.calcium-count,
+.calcium-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 17px;
+  padding: 0 5px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1;
+}
+
+.calcium-input,
+.calcium-select {
+  width: 100%;
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 5px 7px;
+  min-height: 26px;
+  outline: none;
+}
+
+.calcium-input:focus,
+.calcium-select:focus {
+  border-color: var(--primary);
+}
+
+.calcium-input::placeholder {
+  color: var(--faint);
+}
+
+.calcium-search-summary,
+.calcium-selection-meta {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.calcium-search-line {
+  margin-bottom: 5px;
+}
+
+.calcium-search-found-in {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.calcium-search-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  min-height: 18px;
+}
+
+.calcium-search-chip-name,
+.calcium-search-chip-count {
+  font-size: 9px;
+}
+
+.calcium-search-chip-name {
+  color: var(--text);
+}
+
+.calcium-search-chip-count {
+  color: var(--warning);
+  font-weight: 700;
+}
+
+.calcium-empty,
+.calcium-actions-empty {
+  margin-top: 6px;
+  padding: 6px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 9px;
+}
+
+.calcium-pre {
+  display: none;
+  margin: 6px 0 0;
+  background: #0c0e11;
+  color: #dbe3ed;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: auto;
+  max-height: 58vh;
+  font-size: 9px;
+  line-height: 1.3;
+}
+
+.calcium-player-title,
+.calcium-player-title-realm,
+.calcium-player-subtitle {
+  font-weight: 700;
+}
+
+.calcium-player-title {
+  font-size: 12px;
+}
+
+.calcium-player-text {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.calcium-player-hero {
+  margin-top: 6px;
+  margin-bottom: 8px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+
+.calcium-player-title-realm {
+  font-size: 10px;
+}
+
+.calcium-player-title-sub {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.calcium-player-section + .calcium-player-section {
+  margin-top: 8px;
+}
+
+.calcium-player-subtitle {
+  margin-bottom: 5px;
+  font-size: 10px;
+}
+
+.calcium-table-wrap {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.calcium-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-2);
+  font-size: 9px;
+  line-height: 1.15;
+}
+
+.calcium-table th,
+.calcium-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.calcium-table th {
+  color: var(--muted);
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.025);
+  white-space: nowrap;
+}
+
+.calcium-table tr:last-child th,
+.calcium-table tr:last-child td {
+  border-bottom: none;
+}
+
+.calcium-cell-empty {
+  color: var(--muted);
+  text-align: center;
+  padding: 7px;
+}
+
+.calcium-building-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.calcium-building-name {
+  font-weight: 600;
+  font-size: 9px;
+}
+
+.calcium-building-meta {
+  color: var(--muted);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.calcium-building-count,
+.calcium-building-group-status {
+  font-size: 9px;
+}
+
+.calcium-building-count {
+  font-weight: 700;
+}
+
+.calcium-building-group-status {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.calcium-building-group-status.is-active {
+  color: var(--warning);
+}
+
+.calcium-building-indicator {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--warning);
+  margin-right: 5px;
+  vertical-align: middle;
+}
+
+.calcium-building-indicator.is-idle {
+  background: var(--success);
+}
+
+.calcium-actions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.calcium-action-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 7px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: 7px;
+}
+
+.calcium-action-main {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  width: 100%;
+}
+
+.calcium-action-badge {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--warning);
+  flex: 0 0 auto;
+}
+
+.calcium-action-title,
+.calcium-action-plot,
+.calcium-action-meta,
+.calcium-action-timer,
+code {
+  font-size: 9px;
+}
+
+.calcium-action-title {
+  font-weight: 700;
+}
+
+.calcium-action-plot,
+.calcium-action-meta {
+  color: var(--muted);
+}
+
+.calcium-action-timer {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+code {
+  color: #bdd8ff;
+}
+
+.calcium-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.calcium-resource-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  min-height: 24px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+
+.calcium-resource-label {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.15;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calcium-resource-values {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.calcium-resource-amount {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 9px;
+  line-height: 1.15;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.calcium-resource-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  min-height: 16px;
+  border: 1px solid rgba(80, 250, 123, 0.16);
+  border-radius: 999px;
+  background: rgba(80, 250, 123, 0.08);
+  color: rgba(80, 250, 123, 0.92);
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.calcium-resource-empty {
+  grid-column: 1 / -1;
+  padding: 4px 6px;
+  min-height: 24px;
+  border: 1px dashed var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.15;
+  display: flex;
+  align-items: center;
+}
+
+#ext-data-view {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+}
+
+.calcium-json-block {
+  margin: 0;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.calcium-json-title {
+  display: block;
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #cfcfcf;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.calcium-json-pre {
+  display: block;
+  margin: 0;
+  padding: 12px;
+  max-height: 280px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.calcium-json-pre code {
+  display: block;
+  margin: 0;
+  padding: 0;
+}
+
+.calcium-action-overview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 9px;
+}
+
+.calcium-action-overview-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.calcium-action-overview-top,
+.calcium-action-overview-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.calcium-action-overview-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  min-height: 20px;
+  border-radius: 6px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.badge-troop    { background: rgba(80, 250, 123, 0.15); color: #50fa7b; }
+.badge-battle   { background: rgba(255, 85, 85, 0.15); color: #ff5555; }
+.badge-research { background: rgba(139, 233, 253, 0.15); color: #8be9fd; }
+.badge-building { background: rgba(255, 184, 108, 0.15); color: #ffb86c; }
+.badge-default  { background: rgba(255, 255, 255, 0.08); color: #cfcfcf; }
+
+.calcium-action-overview-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #f3f4f6;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calcium-action-overview-end {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.calcium-action-overview-timer {
+  flex: 0 0 auto;
+  color: #f1fa8c;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.calcium-item-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.calcium-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  min-height: 24px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+
+.calcium-item-label {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.15;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calcium-item-count {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 9px;
+  line-height: 1.15;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #39414c;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@media (max-width: 420px) {
+  .calcium-status-row,
+  .calcium-action-item,
+  .calcium-building-cell {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

@@ -21,6 +21,8 @@ git clone https://github.com/RoAScript/Script.git
 cd Script
 ```
 
+ou Télécharger le ZIP du dépôt GitHub et décompresser le fichier.
+
 ### 2. Ouvrir la page Extensions de Chrome
 
 Naviguez vers l'URL suivante dans Chrome :

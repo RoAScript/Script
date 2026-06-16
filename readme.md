@@ -22,6 +22,7 @@ cd Script
 ```
 
 ou Télécharger le ZIP du dépôt GitHub et décompresser le fichier.
+https://github.com/RoAScript/Script/archive/refs/heads/main.zip
 
 ### 2. Ouvrir la page Extensions de Chrome
 

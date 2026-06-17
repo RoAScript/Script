@@ -102,19 +102,26 @@
       hop: "Hop",
       jump: "Jump",
       leap: "Leap",
+      harvest_nano_1d: "Récolte nano 1jr",
       locust_curse_1d: "Maléd. sauterelles 1jr",
+      frog_curse_1d: "Maléd. grenouille 1jr",
+      worm_curse_1d: "Maléd vers 1jr",
       mass_nullifier: "Destructeur",
       purple_bones: "Os violet",
       resource_chest_250k: "Coffre ressource 250k",
       skip: "Skip",
       testronius_dust: "Poussière testro",
       testronius_powder: "Poudre testro",
+      testronius_infusion: "Infusion testro",
       trance_march: "Marche en transe",
       trance_march_elixir: "Elixir marche en transe",
       truce: "Paix",
-      worm_curse_1d: "Maléd vers 1jr",
       fortuna_ticket: "Ticket fortuna",
-      fortuna_medallion: "Médaillon fortuna"
+      fortuna_medallion: "Médaillon fortuna",
+      random_resource_pack_5m: "Aléa pack 5M ress.",
+      nano_chest: "Coffre nano",
+      cursed_chest: "Coffre malédiction",
+      chronos_satchel: "Sacoche Chronos",
     }
   };
 })();

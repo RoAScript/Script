@@ -14,7 +14,7 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Calcium"
+    "default_title": "RoA - Calcium"
   },
   "side_panel": {
     "default_path": "sidepanel.html"

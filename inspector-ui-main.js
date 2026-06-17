@@ -25,7 +25,7 @@
         search: [],
         resource: [],
         building: [],
-        troops: [],
+        troop: [],
         items: [],
       },
       Actions: [],
@@ -36,7 +36,7 @@
       },
       Resource: [],
       Troop: [],
-      Item:  [],
+      Item: [],
     }
   };
 
@@ -50,6 +50,7 @@
   const PUSH_SOURCE = 'CALCIUM_BRIDGE_PUSH';
 
   let lastPublishedSignature = null;
+  let actionsWatcherIntervalId = null;
 
   function safePostMessage(payload) {
     window.postMessage(payload, window.location.origin);
@@ -166,22 +167,29 @@
   }
 
   function initBuildingData() {
-    // Definition des bâtiments
     const categoryDefKey = `api.definitions.building`;
     const rawDefCategory = STATE.dataByCategory[categoryDefKey];
     const defData = rawDefCategory?.[0]?.member ?? [];
     Calcium.Data.Buildings = defData;
 
-    // Bâtiment du user
     const buildingsData = STATE.dataByCategory[`api.players.${Calcium.guid.player}.buildings`]?.[0]?.member || [];
 
-    Calcium.Data.Player.building = buildingsData.map(buildingData => ({
-      definitionId: buildingData.definitionId,
-      level: buildingData.level,
-      plot: buildingData.plot,
-      uuid: buildingData.uuid,
-      label: getBuildingLabel(buildingData.definitionId, 'fr')
-    }));
+    const existingBuildingsByUuid = Object.fromEntries(
+      (Calcium.Data.Player.building || []).map(building => [building.uuid, building])
+    );
+
+    Calcium.Data.Player.building = buildingsData.map(buildingData => {
+      const existing = existingBuildingsByUuid[buildingData.uuid];
+
+      return {
+        definitionId: buildingData.definitionId,
+        level: existing?.level ?? buildingData.level ?? 0,
+        plot: buildingData.plot,
+        uuid: buildingData.uuid,
+        status: existing?.status ?? buildingData.status ?? null,
+        label: getBuildingLabel(buildingData.definitionId, 'fr')
+      };
+    });
   }
 
   function initActionData() {
@@ -196,27 +204,36 @@
   }
 
   function initResearchData() {
-    // Definition des recherches
     const categoryDefKey = `api.definitions.research`;
     const rawDefCategory = STATE.dataByCategory[categoryDefKey];
     const defData = rawDefCategory?.[0]?.member ?? [];
     Calcium.Data.Search = defData;
 
-    // Recherche du user
     const categoryUserKey = `api.players.${Calcium.guid.player}.researches`;
     const rawUserCategory = STATE.dataByCategory[categoryUserKey];
     const userData = rawUserCategory?.[0]?.member ?? [];
-    Calcium.Data.Player.search = userData;
+
+    const existingResearchByUuid = Object.fromEntries(
+      (Calcium.Data.Player.search || []).map(research => [research.uuid, research])
+    );
+
+    Calcium.Data.Player.search = userData.map(researchData => {
+      const existing = existingResearchByUuid[researchData.uuid];
+
+      return {
+        ...researchData,
+        level: existing?.level ?? researchData.level ?? 0,
+        status: existing?.status ?? researchData.status ?? null
+      };
+    });
   }
 
   function initResourceData() {
-    // Definition des ressources
     const categoryDefKey = `api.definitions.resource`;
     const rawDefCategory = STATE.dataByCategory[categoryDefKey];
     const defData = rawDefCategory?.[0]?.member ?? [];
     Calcium.Data.Resource = defData;
 
-    // Ressources du user
     const categoryUserKey = `api.players.${Calcium.guid.player}.resources`;
     const rawUserCategory = STATE.dataByCategory[categoryUserKey];
     const userData = rawUserCategory?.[0]?.member ?? [];
@@ -224,13 +241,11 @@
   }
 
   function initTroopData() {
-    // Definition des ressources
     const categoryDefKey = `api.definitions.troop`;
     const rawDefCategory = STATE.dataByCategory[categoryDefKey];
     const defData = rawDefCategory?.[0]?.member ?? [];
     Calcium.Data.Troop = defData;
 
-    // Ressources du user
     const categoryUserKey = `api.players.${Calcium.guid.player}.troops`;
     const rawUserCategory = STATE.dataByCategory[categoryUserKey];
     const userData = rawUserCategory?.[0]?.member ?? [];
@@ -238,13 +253,11 @@
   }
 
   function initItemData() {
-    // Definition des items
     const categoryDefKey = `api.definitions.item`;
     const rawDefCategory = STATE.dataByCategory[categoryDefKey];
     const defData = rawDefCategory?.[0]?.member ?? [];
     Calcium.Data.Item = defData;
 
-    // Item du user
     const categoryUserKey = `api.players.${Calcium.guid.player}.items`;
     const rawUserCategory = STATE.dataByCategory[categoryUserKey];
     const userData = rawUserCategory?.[0]?.member ?? [];
@@ -288,32 +301,148 @@
     }
   }
 
-function buildSnapshot() {
-  refreshAllComputedData();
+  function markActionAsFinished(action) {
+    if (!action) return;
+    action.finished = true;
+    action.remainingTime = 0;
+  }
 
-  return {
-    state: {
-      uiEnabled: STATE.uiEnabled,
-      currentFilter: STATE.currentFilter,
-      currentClientId: STATE.currentClientId ? 'SET' : null
-    },
-    calcium: JSON.parse(JSON.stringify(Calcium)),
-    visibleCategories: API.getVisibleCategories(),
-    filteredByCategory: getFilteredByVisibleCategories(),
-    requestsByCategory: JSON.parse(JSON.stringify(STATE.requestsByCategory)),
-    requestMetaByCategory: JSON.parse(JSON.stringify(STATE.requestMetaByCategory)),
-    searchSummary: JSON.parse(JSON.stringify(getSearchSummary())),
-    derived: {
-      groupedBuildings: JSON.parse(JSON.stringify(getGroupedBuildings())),
-      buildingActions: JSON.parse(JSON.stringify(getActionsByType('building'))),
-      searchActions: JSON.parse(JSON.stringify(getActionsByType('research'))),
-      troopActions: JSON.parse(JSON.stringify(getActionsByType('troop'))),
-      activeBuildingActions: JSON.parse(JSON.stringify(
-        getActionsByType('building').filter(action => !action.finished)
-      ))
+  function applyBuildingCompletion(action) {
+    const buildingUuid = action?.metadata?.building_uuid;
+    if (!buildingUuid) return false;
+
+    const building = (Calcium.Data.Player.building || []).find(
+      buildingItem => buildingItem?.uuid === buildingUuid
+    );
+
+    if (!building) return false;
+
+    building.level = Number(building.level || 0) + 1;
+    building.status = 'stable';
+    return true;
+  }
+
+  function applyResearchCompletion(action) {
+    const researchUuid = action?.metadata?.research_uuid;
+    if (!researchUuid) return false;
+
+    const research = (Calcium.Data.Player.search || []).find(
+      researchItem => researchItem?.uuid === researchUuid
+    );
+
+    if (!research) return false;
+
+    research.level = Number(research.level || 0) + 1;
+    research.status = 'stable';
+    return true;
+  }
+
+  function applyTroopCompletion(action) {
+    return false;
+  }
+
+  function applyBattleCompletion(action) {
+    return false;
+  }
+
+  function applyActionCompletion(action) {
+    if (!action) return false;
+
+    const entity = String(action.entity || '');
+
+    if (entity.endsWith('Building')) {
+      return applyBuildingCompletion(action);
     }
-  };
-}
+
+    if (entity.endsWith('Research')) {
+      return applyResearchCompletion(action);
+    }
+
+    if (entity.endsWith('Troop')) {
+      return applyTroopCompletion(action);
+    }
+
+    if (entity.endsWith('Battle') || entity === 'Battle') {
+      return applyBattleCompletion(action);
+    }
+
+    return false;
+  }
+
+  function processFinishedActions() {
+    const actions = Calcium.Data.Actions;
+    if (!Array.isArray(actions) || actions.length === 0) return false;
+
+    const now = Date.now();
+    const finishedActionUuids = [];
+    let hasMutation = false;
+
+    actions.forEach(action => {
+      if (!action || action.finished) return;
+      if (!action.endAt) return;
+
+      const endTimestamp = new Date(action.endAt).getTime();
+      if (Number.isNaN(endTimestamp)) return;
+
+      if (endTimestamp > now) {
+        action.remainingTime = Math.max(0, Math.floor((endTimestamp - now) / 1000));
+        return;
+      }
+
+      markActionAsFinished(action);
+      applyActionCompletion(action);
+      finishedActionUuids.push(action.uuid);
+      hasMutation = true;
+    });
+
+    if (!hasMutation) return false;
+
+    Calcium.Data.Actions = actions.filter(
+      action => !finishedActionUuids.includes(action?.uuid)
+    );
+
+    return true;
+  }
+
+  function startActionsWatcher() {
+    if (actionsWatcherIntervalId) return;
+
+    actionsWatcherIntervalId = window.setInterval(() => {
+      const didChange = processFinishedActions();
+
+      if (didChange) {
+        publishSnapshot('actions-expired', true);
+      }
+    }, 1000);
+  }
+
+  function buildSnapshot() {
+    refreshAllComputedData();
+    processFinishedActions();
+
+    return {
+      state: {
+        uiEnabled: STATE.uiEnabled,
+        currentFilter: STATE.currentFilter,
+        currentClientId: STATE.currentClientId ? 'SET' : null
+      },
+      calcium: JSON.parse(JSON.stringify(Calcium)),
+      visibleCategories: API.getVisibleCategories(),
+      filteredByCategory: getFilteredByVisibleCategories(),
+      requestsByCategory: JSON.parse(JSON.stringify(STATE.requestsByCategory)),
+      requestMetaByCategory: JSON.parse(JSON.stringify(STATE.requestMetaByCategory)),
+      searchSummary: JSON.parse(JSON.stringify(getSearchSummary())),
+      derived: {
+        groupedBuildings: JSON.parse(JSON.stringify(getGroupedBuildings())),
+        buildingActions: JSON.parse(JSON.stringify(getActionsByType('building'))),
+        searchActions: JSON.parse(JSON.stringify(getActionsByType('research'))),
+        troopActions: JSON.parse(JSON.stringify(getActionsByType('troop'))),
+        activeBuildingActions: JSON.parse(JSON.stringify(
+          getActionsByType('building').filter(action => !action.finished)
+        ))
+      }
+    };
+  }
 
   function computeSignature(snapshot) {
     return JSON.stringify(snapshot);
@@ -405,10 +534,15 @@ function buildSnapshot() {
 
   API.onDatasetReady(() => {
     console.log('[Calcium][SidePanel][MAIN] Dataset prêt');
+    refreshAllComputedData();
+    processFinishedActions();
+    startActionsWatcher();
     publishSnapshot('dataset-ready', true);
   });
 
   API.onChange(() => {
+    refreshAllComputedData();
+    processFinishedActions();
     publishSnapshot('api-change');
   });
 

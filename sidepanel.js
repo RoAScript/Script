@@ -417,6 +417,74 @@ function buildItemBloc(calcium) {
   `;
 }
 
+function buildResourcesBlock(calcium) {
+  const showResources = {
+    food: true,
+    lumber: true,
+    metal: true,
+    stone: true,
+    blue_energy: true,
+    gold: true,
+    soulc: false,
+    ruby: false,
+    population: false,
+    talisman: false,
+    elixir: true,
+    fangtooth: false,
+    glowing_mandrake: false
+  };
+
+  const resources = Array.isArray(calcium?.Data?.Player?.resource)
+    ? calcium.Data.Player.resource
+    : [];
+
+  const visibleResources = resources.filter(
+    (resource) => showResources[resource?.type] === true
+  );
+
+  const storageVaultPlayer = (calcium?.Data?.Player?.building || []).find(
+    (building) => building?.definitionId === 'storage_vault'
+  );
+
+  const storageVaultLevel = storageVaultPlayer?.level ?? null;
+
+  const storageVaultDefinition = (calcium?.Data?.Buildings || []).find(
+    (building) => building?.id === 'storage_vault'
+  );
+
+  const storageVaultProtection =
+    storageVaultDefinition?.metadata?.[String(storageVaultLevel)]?.protection ?? {};
+
+  const resourcesHtml = visibleResources.length
+    ? visibleResources.map((resource) => {
+        const label = escapeHtml(getLabelTrans(resource?.type, 'resource'));
+        const amount = escapeHtml(formatCompactNumber(Number(resource?.amount)));
+        const resProtected = escapeHtml(
+          formatCompactNumber(storageVaultProtection?.[resource?.type] ?? 0)
+        );
+
+        return `
+          <div class="calcium-resource-card">
+            <span class="calcium-resource-label">${label}</span>
+            <div class="calcium-resource-values">
+              <span class="calcium-resource-amount">${amount}</span>
+              <span class="calcium-resource-pill">🔒 ${resProtected}</span>
+            </div>
+          </div>
+        `;
+      }).join('')
+    : `<div class="calcium-resource-empty">Aucune ressource</div>`;
+
+  return `
+    <div class="calcium-player-section">
+      <div class="calcium-player-subtitle">Ressources</div>
+      <div class="calcium-resource-grid">
+        ${resourcesHtml}
+      </div>
+    </div>
+  `;
+}
+
 function buildActionsOverview(calcium) {
   const actions = Array.isArray(calcium?.Data?.Actions)
     ? calcium.Data.Actions.filter((a) => !a.finished)
@@ -541,63 +609,6 @@ function renderPlayerGeneralTab(calcium) {
   const power = formatValue(calcium?.Data?.Player?.power, '0');
   const realmName = escapeHtml(formatValue(calcium?.Data?.Realm?.name));
 
-  const showResources = {
-    food: true,
-    lumber: true,
-    metal: true,
-    stone: true,
-    blue_energy: true,
-    gold: true,
-    soulc: false,
-    ruby: false,
-    population: false,
-    talisman: false,
-    elixir: true,
-    fangtooth: false,
-    glowing_mandrake: false
-  };
-
-  const resources = Array.isArray(calcium?.Data?.Player?.resource)
-    ? calcium.Data.Player.resource
-    : [];
-
-  const visibleResources = resources.filter(
-    (resource) => showResources[resource?.type] === true
-  );
-
-  const storageVaultPlayer = (calcium?.Data?.Player?.building || []).find(
-    (building) => building?.definitionId === 'storage_vault'
-  );
-
-  const storageVaultLevel = storageVaultPlayer?.level ?? null;
-
-  const storageVaultDefinition = (calcium?.Data?.Buildings || []).find(
-    (building) => building?.id === 'storage_vault'
-  );
-
-  const storageVaultProtection =
-    storageVaultDefinition?.metadata?.[String(storageVaultLevel)]?.protection ?? {};
-
-  const resourcesHtml = visibleResources.length
-    ? visibleResources.map((resource) => {
-        const label = escapeHtml(getLabelTrans(resource?.type, 'resource'));
-        const amount = escapeHtml(formatCompactNumber(Number(resource?.amount)));
-        const resProtected = escapeHtml(
-          formatCompactNumber(storageVaultProtection?.[resource?.type] ?? 0)
-        );
-
-        return `
-          <div class="calcium-resource-card">
-            <span class="calcium-resource-label">${label}</span>
-            <div class="calcium-resource-values">
-              <span class="calcium-resource-amount">${amount}</span>
-              <span class="calcium-resource-pill">🔒 ${resProtected}</span>
-            </div>
-          </div>
-        `;
-      }).join('')
-    : `<div class="calcium-resource-empty">Aucune ressource</div>`;
-
   return `
     <div class="calcium-player-hero">
       <div class="calcium-player-title-realm">Royaume : ${realmName}</div>
@@ -606,12 +617,7 @@ function renderPlayerGeneralTab(calcium) {
       </div>
     </div>
 
-    <div class="calcium-player-section">
-      <div class="calcium-player-subtitle">Ressources</div>
-      <div class="calcium-resource-grid">
-        ${resourcesHtml}
-      </div>
-    </div>
+    ${buildResourcesBlock(calcium)}
 
     ${buildItemBloc(calcium)}
 

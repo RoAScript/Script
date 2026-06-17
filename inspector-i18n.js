@@ -121,6 +121,7 @@
       random_resource_pack_5m: "Aléa pack 5M ress.",
       nano_chest: "Coffre nano",
       cursed_chest: "Coffre malédiction",
+      combat_buffs_chest: "Coffre de combat",
       chronos_satchel: "Sacoche Chronos",
     }
   };

@@ -728,6 +728,42 @@ code {
   white-space: nowrap;
 }
 
+.calcium-item-subtabs {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.calcium-item-subtab {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 6px;
+  min-height: 24px;
+  cursor: pointer;
+  transition: 120ms ease;
+  font-size: 10px;
+  line-height: 1.1;
+  appearance: none;
+}
+
+.calcium-item-subtab:hover {
+  background: var(--surface-2);
+  border-color: #44505e;
+}
+
+.calcium-item-subtab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.calcium-item-subtab:active {
+  transform: none;
+}
+
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;

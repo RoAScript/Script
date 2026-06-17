@@ -51,6 +51,7 @@
 
   let lastPublishedSignature = null;
   let actionsWatcherIntervalId = null;
+  let appliedCompletedActionUuids = new Set();
 
   function safePostMessage(payload) {
     window.postMessage(payload, window.location.origin);
@@ -197,10 +198,26 @@
     const rawCategory = STATE.dataByCategory[categoryKey];
     const actionsData = rawCategory?.[0]?.member ?? [];
 
-    Calcium.Data.Actions = actionsData.map(actionData => ({
-      ...actionData,
-      calciumEntity: String(actionData.entity || '').split('\\').pop().toLowerCase()
-    }));
+    const existingActionsByUuid = Object.fromEntries(
+      (Calcium.Data.Actions || []).map(action => [action.uuid, action])
+    );
+
+    Calcium.Data.Actions = actionsData
+      .filter(actionData => !appliedCompletedActionUuids.has(actionData.uuid))
+      .map(actionData => {
+        const existing = existingActionsByUuid[actionData.uuid];
+        const endTimestamp = new Date(actionData.endAt).getTime();
+        const remainingTime = Number.isNaN(endTimestamp)
+          ? Math.max(0, Number(actionData.remainingTime || existing?.remainingTime || 0))
+          : Math.max(0, Math.floor((endTimestamp - Date.now()) / 1000));
+
+        return {
+          ...actionData,
+          finished: existing?.finished ?? actionData.finished,
+          remainingTime,
+          calciumEntity: String(actionData.entity || '').split('\\').pop().toLowerCase()
+        };
+      });
   }
 
   function initResearchData() {
@@ -378,7 +395,9 @@
     let hasMutation = false;
 
     actions.forEach(action => {
-      if (!action || action.finished) return;
+      if (!action) return;
+      if (appliedCompletedActionUuids.has(action.uuid)) return;
+      if (action.finished) return;
       if (!action.endAt) return;
 
       const endTimestamp = new Date(action.endAt).getTime();
@@ -389,6 +408,7 @@
         return;
       }
 
+      appliedCompletedActionUuids.add(action.uuid);
       markActionAsFinished(action);
       applyActionCompletion(action);
       finishedActionUuids.push(action.uuid);
@@ -404,21 +424,8 @@
     return true;
   }
 
-  function startActionsWatcher() {
-    if (actionsWatcherIntervalId) return;
-
-    actionsWatcherIntervalId = window.setInterval(() => {
-      const didChange = processFinishedActions();
-
-      if (didChange) {
-        publishSnapshot('actions-expired', true);
-      }
-    }, 1000);
-  }
-
   function buildSnapshot() {
     refreshAllComputedData();
-    processFinishedActions();
 
     return {
       state: {
@@ -467,6 +474,18 @@
     });
 
     return snapshot;
+  }
+
+  function startActionsWatcher() {
+    if (actionsWatcherIntervalId) return;
+
+    actionsWatcherIntervalId = window.setInterval(() => {
+      const didChange = processFinishedActions();
+
+      if (didChange) {
+        publishSnapshot('actions-expired', true);
+      }
+    }, 1000);
   }
 
   async function handleBridgeRequest(data) {

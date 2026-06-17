@@ -1,6 +1,7 @@
 const UI_STATE = {
   activeMainTab: 'datas',
   activePlayerSubTab: 'general',
+  activeItemCategory: 'all',
   snapshot: null,
   countdownInterval: null,
   port: null
@@ -100,7 +101,7 @@ function connectLiveUpdates() {
     }
 
     if (message?.type === 'CALCIUM_STATE_UPDATED') {
-      console.log('[SIDEPANEL] live snapshot reçu', message.reason, Object.keys(message.snapshot?.requestsByCategory || {}));   
+      console.log('[SIDEPANEL] live snapshot reçu', message.reason, Object.keys(message.snapshot?.requestsByCategory || {}));
       UI_STATE.snapshot = message.snapshot;
       setStatus(`Mise à jour reçue (${message.reason || 'live'}).`, 'Live');
       renderAll();
@@ -116,7 +117,7 @@ function connectLiveUpdates() {
   port.postMessage({ type: 'CALCIUM_PANEL_READY' });
 }
 
-function getLabelTrans(str, type= 'general', lang = 'fr') {
+function getLabelTrans(str, type = 'general', lang = 'fr') {
   if (!str || !type) return str ?? '';
   const dict = window.CalciumI18n?.[lang]?.[type] ?? {};
   return dict[str] ?? str;
@@ -263,13 +264,8 @@ function rebuildCategoryOptions() {
   if (!selectEl) return;
 
   const previous = selectEl.value;
-
-  // Base : ce que le moteur considère "visible"
   const visible = snapshot?.visibleCategories || [];
-
-  // On ajoute les catégories qui ont eu au moins 1 requête
   const extra = Object.keys(snapshot?.requestsByCategory || {});
-
   const categories = Array.from(new Set([...visible, ...extra])).sort();
 
   selectEl.innerHTML = '';
@@ -366,7 +362,26 @@ function buildPlayerHero() {
   `;
 }
 
-function buildItemBloc(calcium) {
+function normalizeItemCategory(category) {
+  return String(category || '').trim();
+}
+
+function formatItemCategoryLabel(category) {
+  if (category === 'all') {
+    return 'Tous';
+  }
+
+  const translated = getLabelTrans(category, 'item_category');
+  if (translated && translated !== category) {
+    return translated;
+  }
+
+  return String(category)
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function getVisiblePlayerItems(calcium) {
   const itemDefinitions = Array.isArray(calcium?.Data?.Item)
     ? calcium.Data.Item
     : [];
@@ -381,16 +396,82 @@ function buildItemBloc(calcium) {
       .map((item) => [item.definitionId, item])
   );
 
-  const visibleItemDefinitions = itemDefinitions.filter(
-    (itemDef) => (playerItemsByDefinitionId[itemDef?.id]?.count ?? 0) > 0
-  );
+  return itemDefinitions
+    .filter((itemDef) => (playerItemsByDefinitionId[itemDef?.id]?.count ?? 0) > 0)
+    .map((itemDef) => ({
+      itemDef,
+      playerItem: playerItemsByDefinitionId[itemDef.id] || null,
+      category: normalizeItemCategory(itemDef?.category)
+    }));
+}
 
-  const itemsHtml = visibleItemDefinitions.length
-    ? visibleItemDefinitions
+function getAvailableItemCategories(calcium) {
+  const categories = Array.from(
+    new Set(
+      (calcium?.Data?.Item || [])
+        .map(item => normalizeItemCategory(item?.category))
+        .filter(Boolean)
+    )
+  ).sort((a, b) => a.localeCompare(b));
+
+  return ['all', ...categories];
+}
+
+function ensureValidActiveItemCategory(calcium) {
+  const availableCategories = getAvailableItemCategories(calcium);
+
+  if (!availableCategories.includes(UI_STATE.activeItemCategory)) {
+    UI_STATE.activeItemCategory = 'all';
+  }
+}
+
+function setActiveItemCategory(category) {
+  UI_STATE.activeItemCategory = normalizeItemCategory(category || 'all') || 'all';
+
+  document.querySelectorAll('.calcium-item-subtab').forEach((tab) => {
+    tab.classList.toggle('active', tab.dataset.itemCategory === UI_STATE.activeItemCategory);
+  });
+
+  renderPlayerPanel();
+}
+
+function buildItemCategoryTabs(calcium) {
+  const categories = getAvailableItemCategories(calcium);
+
+  if (categories.length <= 1) {
+    return '';
+  }
+
+  return `
+    <div class="calcium-item-subtabs">
+      ${categories.map((category) => `
+        <button
+          class="calcium-item-subtab ${UI_STATE.activeItemCategory === category ? 'active' : ''}"
+          type="button"
+          data-item-category="${escapeHtml(category)}"
+        >
+          ${escapeHtml(formatItemCategoryLabel(category))}
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function buildItemBloc(calcium) {
+  ensureValidActiveItemCategory(calcium);
+
+  const visibleItems = getVisiblePlayerItems(calcium);
+  const activeCategory = UI_STATE.activeItemCategory || 'all';
+
+  const filteredItems = visibleItems.filter(({ category }) => {
+    return activeCategory === 'all' || category === activeCategory;
+  });
+
+  const itemsHtml = filteredItems.length
+    ? filteredItems
         .slice()
-        .sort((a, b) => String(a?.id || '').localeCompare(String(b?.id || '')))
-        .map((itemDef) => {
-          const playerItem = playerItemsByDefinitionId[itemDef?.id] || null;
+        .sort((a, b) => String(a?.itemDef?.id || '').localeCompare(String(b?.itemDef?.id || '')))
+        .map(({ itemDef, playerItem }) => {
           const itemLabel = escapeHtml(
             getLabelTrans(itemDef?.id, 'item') || formatValue(itemDef?.id, '—')
           );
@@ -405,11 +486,12 @@ function buildItemBloc(calcium) {
             </div>
           `;
         }).join('')
-    : `<div class="calcium-resource-empty">Aucun item</div>`;
+    : `<div class="calcium-resource-empty">Aucun item dans cette catégorie</div>`;
 
   return `
     <div class="calcium-player-section">
       <div class="calcium-player-subtitle">Items</div>
+      ${buildItemCategoryTabs(calcium)}
       <div class="calcium-item-grid">
         ${itemsHtml}
       </div>
@@ -495,10 +577,10 @@ function buildActionsOverview(calcium) {
   }
 
   const ENTITY_META = {
-    'App\\Entity\\Building': { label: getLabelTrans("building","general"), badgeClass: 'badge-building', order: 1 },
-    'App\\Entity\\Research': { label: getLabelTrans("research","general"), badgeClass: 'badge-research', order: 2 },
-    'App\\Entity\\Troop': { label: getLabelTrans("troop","general"), badgeClass: 'badge-troop', order: 3 },
-    'App\\Entity\\Battle': { label: getLabelTrans("battle","general"), badgeClass: 'badge-battle', order: 4 },
+    'App\\Entity\\Building': { label: getLabelTrans('building', 'general'), badgeClass: 'badge-building', order: 1 },
+    'App\\Entity\\Research': { label: getLabelTrans('research', 'general'), badgeClass: 'badge-research', order: 2 },
+    'App\\Entity\\Troop': { label: getLabelTrans('troop', 'general'), badgeClass: 'badge-troop', order: 3 },
+    'App\\Entity\\Battle': { label: getLabelTrans('battle', 'general'), badgeClass: 'badge-battle', order: 4 },
   };
 
   function getActionTitle(action) {
@@ -562,14 +644,6 @@ function buildActionsOverview(calcium) {
 
     const title = getActionTitle(action);
     const remaining = formatDuration(getRemainingSeconds(action));
-    const endLabel = action.endAt
-      ? new Date(action.endAt).toLocaleString('fr-FR', {
-          day: '2-digit',
-          month: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit'
-        })
-      : '—';
 
     return `
       <div class="calcium-action-overview-row">
@@ -589,13 +663,7 @@ function buildActionsOverview(calcium) {
             ${escapeHtml(remaining)}
           </span>
         </div>
-
-        <div class="calcium-action-overview-bottom">
-          
-          <!--<span class="calcium-action-overview-end" title="Fin : ${escapeHtml(endLabel)}">
-            ${escapeHtml(endLabel)}
-          </span>-->
-        </div>
+        <div class="calcium-action-overview-bottom"></div>
       </div>
     `;
   }).join('');
@@ -618,7 +686,6 @@ function renderPlayerGeneralTab(calcium) {
     </div>
 
     ${buildResourcesBlock(calcium)}
-
     ${buildItemBloc(calcium)}
 
     <div class="calcium-player-section">
@@ -743,7 +810,10 @@ function buildBuildingsRows() {
 
   return groupedBuildings.map(group => {
     const buildingLabel = group.definitionId || 'unknown';
-    const displayLabel = UI_STATE.snapshot?.calcium?.Data?.Player.building?.find(b => b.definitionId === group.definitionId)?.label || buildingLabel;
+    const displayLabel = UI_STATE.snapshot?.calcium?.Data?.Player.building?.find(
+      b => b.definitionId === group.definitionId
+    )?.label || buildingLabel;
+
     const levelRange = group.minLevel === group.maxLevel
       ? `Niv. ${group.minLevel}`
       : `Niv. ${group.minLevel} à ${group.maxLevel}`;
@@ -774,10 +844,10 @@ function buildBuildingsRows() {
 }
 
 function buildSearchRows() {
-  const playerSearch = UI_STATE.snapshot?.calcium?.Data.Player.search || [];
-  
+  const playerSearch = UI_STATE.snapshot?.calcium?.Data?.Player?.search || [];
+
   return playerSearch.map(search => {
-    const displayLabel = getLabelTrans(search.definitionId, "research");
+    const displayLabel = getLabelTrans(search.definitionId, 'research');
     const levelRange = search.level;
 
     return `
@@ -785,8 +855,8 @@ function buildSearchRows() {
         <td>
           <div class="calcium-building-cell">
             <div>
-              ${search.status == "searching"
-                ? `<span class="calcium-building-indicator" title="Au moins un bâtiment de ce type est en construction"></span>`
+              ${search.status === 'searching'
+                ? `<span class="calcium-building-indicator" title="Recherche en cours"></span>`
                 : `<span class="calcium-building-indicator is-idle"></span>`
               }
               <span class="calcium-building-name">${escapeHtml(displayLabel)}</span>
@@ -795,8 +865,8 @@ function buildSearchRows() {
           </div>
         </td>
         <td>
-          ${search.status == "searching"
-            ? `<span class="calcium-building-group-status is-active">En recheche</span>`
+          ${search.status === 'searching'
+            ? `<span class="calcium-building-group-status is-active">En recherche</span>`
             : `<span class="calcium-building-group-status">Stable</span>`
           }
         </td>
@@ -818,24 +888,25 @@ function buildSearchActionsSummary() {
     <div class="calcium-actions-list">
       ${actions.map(action => {
         const searchUuid = action.metadata?.research_uuid;
-        const search = (UI_STATE.snapshot?.calcium?.Data?.Search || []).find(b => b.uuid === String(searchUuid));
-        const searchP = (UI_STATE.snapshot?.calcium?.Data?.Player.search || []).find(b => b.uuid === String(searchUuid));
-        const searchName = getLabelTrans(searchP?.definitionId, "research") || 'Recherche inconnue';
+        const searchP = (UI_STATE.snapshot?.calcium?.Data?.Player?.search || []).find(
+          b => b.uuid === String(searchUuid)
+        );
+        const searchName = getLabelTrans(searchP?.definitionId, 'research') || 'Recherche inconnue';
         const remaining = formatDuration(getRemainingSeconds(action));
-
+        const currentLevel = Number(searchP?.level ?? 0);
 
         return `
           <div class="calcium-action-item" data-action-uuid="${escapeHtml(action.uuid)}">
             <div class="calcium-action-main">
               <span class="calcium-action-badge"></span>
-              <span class="calcium-action-title">${escapeHtml(searchName)} ${searchP.level} -> ${searchP.level+1}</span>
+              <span class="calcium-action-title">${escapeHtml(searchName)} ${currentLevel} -> ${currentLevel + 1}</span>
               <span
                 class="calcium-action-timer"
                 data-end-at="${escapeHtml(formatValue(action.endAt, ''))}"
                 data-finished="${String(!!action.finished)}"
                 data-remaining-time="${Number(action.remainingTime || 0)}"
               >
-                ${remaining}
+                ${escapeHtml(remaining)}
               </span>
             </div>
           </div>
@@ -858,22 +929,25 @@ function buildBuildingActionsSummary() {
     <div class="calcium-actions-list">
       ${actions.map(action => {
         const buildingUuid = action.metadata?.building_uuid;
-        const building = (UI_STATE.snapshot?.calcium?.Data?.Player.building || []).find(b => b.uuid === String(buildingUuid));
+        const building = (UI_STATE.snapshot?.calcium?.Data?.Player?.building || []).find(
+          b => b.uuid === String(buildingUuid)
+        );
         const buildingName = building?.label || 'Bâtiment inconnu';
         const remaining = formatDuration(getRemainingSeconds(action));
+        const currentLevel = Number(building?.level ?? 0);
 
         return `
           <div class="calcium-action-item" data-action-uuid="${escapeHtml(action.uuid)}">
             <div class="calcium-action-main">
               <span class="calcium-action-badge"></span>
-              <span class="calcium-action-title">${escapeHtml(buildingName)} ${building.level} -> ${building.level+1}</span>
+              <span class="calcium-action-title">${escapeHtml(buildingName)} ${currentLevel} -> ${currentLevel + 1}</span>
               <span
                 class="calcium-action-timer"
                 data-end-at="${escapeHtml(formatValue(action.endAt, ''))}"
                 data-finished="${String(!!action.finished)}"
                 data-remaining-time="${Number(action.remainingTime || 0)}"
               >
-                ${remaining}
+                ${escapeHtml(remaining)}
               </span>
             </div>
           </div>
@@ -895,25 +969,24 @@ function buildTroopActionsSummary() {
   return `
     <div class="calcium-actions-list">
       ${actions.map(action => {
-        const troopUuid = action.metadata?.troop_uuid;
-        const troop = (UI_STATE.snapshot?.calcium?.Data?.Troop || []).find(b => b.uuid === String(troopUuid));
-        const troopP = (UI_STATE.snapshot?.calcium?.Data?.Player.troop || []).find(b => b.uuid === String(troopUuid));
-        const troopName = getLabelTrans(troopP?.definitionId, "troop");
+        const troopP = (UI_STATE.snapshot?.calcium?.Data?.Player?.troop || []).find(
+          b => b.uuid === String(action.metadata?.troop_uuid)
+        );
+        const troopName = getLabelTrans(troopP?.definitionId, 'troop') || 'Troupe inconnue';
         const remaining = formatDuration(getRemainingSeconds(action));
-
 
         return `
           <div class="calcium-action-item" data-action-uuid="${escapeHtml(action.uuid)}">
             <div class="calcium-action-main">
               <span class="calcium-action-badge"></span>
-              <span class="calcium-action-title">${escapeHtml(troopName)} x${action.metadata.amount}</span>
+              <span class="calcium-action-title">${escapeHtml(troopName)} x${escapeHtml(formatValue(action.metadata?.amount, '0'))}</span>
               <span
                 class="calcium-action-timer"
                 data-end-at="${escapeHtml(formatValue(action.endAt, ''))}"
                 data-finished="${String(!!action.finished)}"
                 data-remaining-time="${Number(action.remainingTime || 0)}"
               >
-                ${remaining}
+                ${escapeHtml(remaining)}
               </span>
             </div>
           </div>
@@ -957,12 +1030,12 @@ function renderPlayerSearchTab() {
     </div>
 
     <div class="calcium-player-section">
-      <div class="calcium-player-subtitle">Bâtiments</div>
+      <div class="calcium-player-subtitle">Recherche</div>
       <div class="calcium-table-wrap">
         <table class="calcium-table">
           <thead>
             <tr>
-              <th scope="col">Bâtiment</th>
+              <th scope="col">Recherche</th>
               <th scope="col">Statut</th>
             </tr>
           </thead>
@@ -1011,22 +1084,31 @@ function renderPlayerPanel() {
       setActivePlayerSubTab(tab.dataset.playerTab);
     });
   });
+
+  panel.querySelectorAll('.calcium-item-subtab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      setActiveItemCategory(tab.dataset.itemCategory);
+    });
+  });
 }
 
 function refreshCountdownElements() {
   const elements = document.querySelectorAll('[data-end-at][data-finished]');
+
   elements.forEach(el => {
     const fakeAction = {
       endAt: el.dataset.endAt,
       finished: el.dataset.finished === 'true',
-      remainingTime: el.dataset.remainingTime || 0
+      remainingTime: Number(el.dataset.remainingTime || 0)
     };
+
     el.textContent = formatDuration(getRemainingSeconds(fakeAction));
   });
 }
 
 function startCountdownRefresh() {
   stopCountdownRefresh();
+
   UI_STATE.countdownInterval = window.setInterval(() => {
     refreshCountdownElements();
   }, 1000);
@@ -1034,7 +1116,7 @@ function startCountdownRefresh() {
 
 function stopCountdownRefresh() {
   if (UI_STATE.countdownInterval) {
-    clearInterval(UI_STATE.countdownInterval);
+    window.clearInterval(UI_STATE.countdownInterval);
     UI_STATE.countdownInterval = null;
   }
 }

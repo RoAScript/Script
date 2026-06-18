@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Calcium",
-  "version": "0.1",
-  "description": "Outil d'automatisation des actions des RoA",
+  "version": "0.2",
+  "description": "Outil pour suivre son avancée dans RoA",
   "permissions": [
     "sidePanel",
     "tabs"

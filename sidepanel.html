@@ -8,6 +8,7 @@
 </head>
 <body>
   <div id="calcium-panel" class="calcium-shell">
+    <div id="calcium-global-tooltip" class="calcium-info-tooltip" role="tooltip" aria-hidden="true"></div>
     <div class="calcium-header">
       <div class="calcium-header-actions">
         <button id="refresh-view-btn" class="calcium-btn calcium-btn-primary">Actualiser</button>
@@ -19,12 +20,9 @@
       </div>
     </div>
 
-    <div class="calcium-main-tabs">
-      <button class="calcium-main-tab active" data-main-tab="datas">Datas</button>
-      <button class="calcium-main-tab" data-main-tab="joueur">Joueur</button>
-    </div>
+    <div class="calcium-main-tabs" id="calcium-main-tabs"></div>
 
-    <div class="calcium-tab-panel active" data-panel="datas">
+    <div class="calcium-tab-panel" data-panel="datas">
       <div class="calcium-body">
         <div class="calcium-row calcium-row-between">
           <strong>📦 Réponses JSON capturées</strong>
@@ -60,11 +58,20 @@
       </div>
     </div>
 
-    <div class="calcium-tab-panel" data-panel="joueur">
+    <div class="calcium-tab-panel active" data-panel="joueur">
       <div id="calcium-player-panel" class="calcium-player-panel">
         <div class="calcium-player-title">Joueur</div>
         <div class="calcium-player-text">
           En attente du parsing du dataset...
+        </div>
+      </div>
+    </div>
+
+    <div class="calcium-tab-panel" data-panel="alliance">
+      <div id="calcium-alliance-panel" class="calcium-player-panel">
+        <div class="calcium-player-title">Alliance</div>
+        <div class="calcium-player-text">
+          En attente du parsing du dataset alliance...
         </div>
       </div>
     </div>

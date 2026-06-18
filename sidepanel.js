@@ -1,11 +1,48 @@
 const UI_STATE = {
-  activeMainTab: 'datas',
+  showResources : {
+    food: true,
+    lumber: true,
+    metal: true,
+    stone: true,
+    blue_energy: true,
+    gold: true,
+    soulc: false,
+    ruby: false,
+    population: false,
+    talisman: false,
+    elixir: true,
+    fangtooth: false,
+    glowing_mandrake: false
+  },
+  activeMainTab: 'joueur',
   activePlayerSubTab: 'general',
+  activeAllianceSubTab: 'general',
   activeItemCategory: 'all',
+  showTopHeaderPanel: true,
+  showPlayerSummary: true,
+  showDataTab: true,
+  showAllianceTab: true,
   snapshot: null,
   countdownInterval: null,
-  port: null
+  port: null,
+  handledFinishedActions: new Set()
 };
+
+function getMainTabs() {
+  return [
+    { id: 'datas', label: 'Datas', visible: UI_STATE.showDataTab },
+    { id: 'joueur', label: 'Joueur', visible: true },
+    { id: 'alliance', label: 'Alliance', visible: UI_STATE.showAllianceTab }
+  ].filter(tab => tab.visible);
+}
+
+function syncStaticUiVisibility() {
+  const headerEl = document.querySelector('.calcium-header');
+
+  if (headerEl) {
+    headerEl.classList.toggle('calcium-hidden', !UI_STATE.showTopHeaderPanel);
+  }
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -39,7 +76,6 @@ function formatDuration(seconds) {
 
 function formatCompactNumber(value) {
   const num = Number(value);
-
   if (!Number.isFinite(num)) return '0';
 
   const abs = Math.abs(num);
@@ -90,18 +126,52 @@ async function requestBridge(message) {
 }
 
 function connectLiveUpdates() {
-  if (UI_STATE.port) return;
+  if (UI_STATE.port) {
+    console.log('[SIDEPANEL][live] connectLiveUpdates() ignoré : port déjà ouvert', UI_STATE.port?.name);
+    return;
+  }
 
-  const port = chrome.runtime.connect({ name: 'calcium-sidepanel' });
+  console.log('[SIDEPANEL][live] Tentative de connexion live au background…');
+
+  let port;
+  try {
+    port = chrome.runtime.connect({ name: 'calcium-sidepanel' });
+  } catch (e) {
+    console.warn('[SIDEPANEL][live] Échec immédiat de chrome.runtime.connect :', e);
+    setStatus('Canal live indisponible (connect).', 'Erreur');
+
+    window.setTimeout(() => {
+      console.log('[SIDEPANEL][live] Nouvelle tentative de connexion après erreur connect()…');
+      connectLiveUpdates();
+    }, 2000);
+    return;
+  }
+
   UI_STATE.port = port;
+  console.log('[SIDEPANEL][live] Port connecté vers background.', port);
+
+  try {
+    port.postMessage({ type: 'CALCIUM_PANEL_READY' });
+    console.log('[SIDEPANEL][live] CALCIUM_PANEL_READY envoyé au background.');
+  } catch (e) {
+    console.warn('[SIDEPANEL][live] Erreur lors de l’envoi de CALCIUM_PANEL_READY :', e);
+  }
 
   port.onMessage.addListener((message) => {
+    console.log('[SIDEPANEL][live] Message reçu du background :', message?.type, message);
+
     if (message?.type === 'CALCIUM_PANEL_READY_ACK') {
+      console.log('[SIDEPANEL][live] Handshake ACK reçu, live prêt.');
       return;
     }
 
     if (message?.type === 'CALCIUM_STATE_UPDATED') {
-      console.log('[SIDEPANEL] live snapshot reçu', message.reason, Object.keys(message.snapshot?.requestsByCategory || {}));
+      console.log(
+        '[SIDEPANEL][live] Snapshot live reçu.',
+        'reason =', message.reason,
+        'categories =', Object.keys(message.snapshot?.requestsByCategory || {})
+      );
+
       UI_STATE.snapshot = message.snapshot;
       setStatus(`Mise à jour reçue (${message.reason || 'live'}).`, 'Live');
       renderAll();
@@ -109,12 +179,41 @@ function connectLiveUpdates() {
   });
 
   port.onDisconnect.addListener(() => {
+    const lastError = chrome.runtime.lastError;
+    console.warn('[SIDEPANEL][live] Port déconnecté.', lastError ? lastError.message : '(aucune erreur runtime)');
+
     UI_STATE.port = null;
     setStatus('Canal live fermé. Reconnexion…', 'Info');
-    window.setTimeout(connectLiveUpdates, 500);
-  });
 
-  port.postMessage({ type: 'CALCIUM_PANEL_READY' });
+    window.setTimeout(() => {
+      console.log('[SIDEPANEL][live] Tentative de reconnexion après déconnexion…');
+      connectLiveUpdates();
+    }, 1000);
+  });
+}
+
+function formatBooleanBadge(value, trueLabel = 'Oui', falseLabel = 'Non') {
+  return value
+    ? `<span class="calcium-badge calcium-badge-success">${escapeHtml(trueLabel)}</span>`
+    : `<span class="calcium-badge calcium-badge-muted">${escapeHtml(falseLabel)}</span>`;
+}
+
+function formatAllianceGrade(grade) {
+  const value = String(grade || '').trim();
+  if (!value) return '—';
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatCoordinates(coords) {
+  const x = coords?.x;
+  const y = coords?.y;
+
+  if (x === undefined || y === undefined || x === null || y === null) {
+    return '—';
+  }
+
+  return `${x}, ${y}`;
 }
 
 function getLabelTrans(str, type = 'general', lang = 'fr') {
@@ -197,25 +296,57 @@ async function refreshToken() {
   await loadState();
 }
 
-function setActiveMainTab(tabName) {
-  UI_STATE.activeMainTab = tabName;
+function renderMainTabs() {
+  const container = document.getElementById('calcium-main-tabs');
+  if (!container) return;
 
-  document.querySelectorAll('.calcium-main-tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.mainTab === tabName);
-  });
+  const tabs = getMainTabs();
 
-  document.querySelectorAll('.calcium-tab-panel').forEach(panel => {
-    panel.classList.toggle('active', panel.dataset.panel === tabName);
+  container.innerHTML = tabs.map(tab => `
+    <button
+      class="calcium-main-tab ${UI_STATE.activeMainTab === tab.id ? 'active' : ''}"
+      type="button"
+      data-main-tab="${tab.id}"
+    >
+      ${tab.label}
+    </button>
+  `).join('');
+
+  container.querySelectorAll('[data-main-tab]').forEach(button => {
+    button.addEventListener('click', () => {
+      setActiveMainTab(button.dataset.mainTab);
+    });
   });
 }
 
-function setActivePlayerSubTab(tabName) {
-  UI_STATE.activePlayerSubTab = tabName;
+function setActiveMainTab(tabId) {
+  const visibleTabs = getMainTabs().map(tab => tab.id);
 
-  document.querySelectorAll('.calcium-player-subtab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.playerTab === tabName);
+  UI_STATE.activeMainTab = visibleTabs.includes(tabId)
+    ? tabId
+    : (visibleTabs[0] || 'joueur');
+
+  document.querySelectorAll('.calcium-tab-panel').forEach(panel => {
+    panel.classList.toggle(
+      'active',
+      panel.dataset.panel === UI_STATE.activeMainTab
+    );
   });
 
+  renderMainTabs();
+
+  if (UI_STATE.activeMainTab === 'joueur') {
+    renderPlayerPanel();
+  } else if (UI_STATE.activeMainTab === 'datas') {
+    rebuildCategoryOptions();
+    refreshSelectedDataView();
+  } else if (UI_STATE.activeMainTab === 'alliance') {
+    renderAlliancePanel();
+  }
+}
+
+function setActivePlayerSubTab(tabId) {
+  UI_STATE.activePlayerSubTab = tabId;
   renderPlayerPanel();
 }
 
@@ -354,10 +485,10 @@ function refreshSelectedDataView() {
 function buildPlayerHero() {
   return `
     <div class="calcium-player-subtabs">
-      <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'general' ? 'active' : ''}" data-player-tab="general">Général</button>
-      <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'troupes' ? 'active' : ''}" data-player-tab="troupes">Troupes</button>
-      <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'batiments' ? 'active' : ''}" data-player-tab="batiments">Bâtiments</button>
-      <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'recherche' ? 'active' : ''}" data-player-tab="recherche">Recherche</button>
+      <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'general' ? 'active' : ''}" data-player-subtab="general">Général</button>
+      <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'troupes' ? 'active' : ''}" data-player-subtab="troupes">Troupes</button>
+      <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'batiments' ? 'active' : ''}" data-player-subtab="batiments">Bâtiments</button>
+      <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'recherche' ? 'active' : ''}" data-player-subtab="recherche">Recherche</button>
     </div>
   `;
 }
@@ -371,7 +502,7 @@ function formatItemCategoryLabel(category) {
     return 'Tous';
   }
 
-  const translated = getLabelTrans(category, 'item_category');
+  const translated = getLabelTrans(category.toLowerCase(), 'item_category');
   if (translated && translated !== category) {
     return translated;
   }
@@ -500,28 +631,12 @@ function buildItemBloc(calcium) {
 }
 
 function buildResourcesBlock(calcium) {
-  const showResources = {
-    food: true,
-    lumber: true,
-    metal: true,
-    stone: true,
-    blue_energy: true,
-    gold: true,
-    soulc: false,
-    ruby: false,
-    population: false,
-    talisman: false,
-    elixir: true,
-    fangtooth: false,
-    glowing_mandrake: false
-  };
-
   const resources = Array.isArray(calcium?.Data?.Player?.resource)
     ? calcium.Data.Player.resource
     : [];
 
   const visibleResources = resources.filter(
-    (resource) => showResources[resource?.type] === true
+    (resource) => UI_STATE.showResources[resource?.type] === true
   );
 
   const storageVaultPlayer = (calcium?.Data?.Player?.building || []).find(
@@ -693,31 +808,33 @@ function renderPlayerGeneralTab(calcium) {
       ${buildActionsOverview(calcium)}
     </div>
 
-    <div class="calcium-player-section">
-      <div class="calcium-player-subtitle">Résumé</div>
-      <div class="calcium-table-wrap">
-        <table class="calcium-table">
-          <tbody>
-            <tr>
-              <th scope="row">Account UUID</th>
-              <td><code>${escapeHtml(formatValue(calcium?.guid?.account))}</code></td>
-            </tr>
-            <tr>
-              <th scope="row">Player UUID</th>
-              <td><code>${escapeHtml(formatValue(calcium?.guid?.player))}</code></td>
-            </tr>
-            <tr>
-              <th scope="row">Realm UUID</th>
-              <td><code>${escapeHtml(formatValue(calcium?.guid?.realm))}</code></td>
-            </tr>
-            <tr>
-              <th scope="row">Alliance UUID</th>
-              <td><code>${escapeHtml(formatValue(calcium?.guid?.alliance))}</code></td>
-            </tr>
-          </tbody>
-        </table>
+    ${UI_STATE.showPlayerSummary ? `
+      <div class="calcium-player-section">
+        <div class="calcium-player-subtitle">Résumé</div>
+        <div class="calcium-table-wrap">
+          <table class="calcium-table">
+            <tbody>
+              <tr>
+                <th scope="row">Account UUID</th>
+                <td><code>${escapeHtml(formatValue(calcium?.guid?.account))}</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Player UUID</th>
+                <td><code>${escapeHtml(formatValue(calcium?.guid?.player))}</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Realm UUID</th>
+                <td><code>${escapeHtml(formatValue(calcium?.guid?.realm))}</code></td>
+              </tr>
+              <tr>
+                <th scope="row">Alliance UUID</th>
+                <td><code>${escapeHtml(formatValue(calcium?.guid?.alliance))}</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    ` : ''}
   `;
 }
 
@@ -1081,7 +1198,7 @@ function renderPlayerPanel() {
 
   panel.querySelectorAll('.calcium-player-subtab').forEach(tab => {
     tab.addEventListener('click', () => {
-      setActivePlayerSubTab(tab.dataset.playerTab);
+      setActivePlayerSubTab(tab.dataset.playerSubtab);
     });
   });
 
@@ -1090,6 +1207,270 @@ function renderPlayerPanel() {
       setActiveItemCategory(tab.dataset.itemCategory);
     });
   });
+}
+
+function renderAllianceOverview(alliance) {
+  const name = escapeHtml(formatValue(alliance?.name));
+  const rank = escapeHtml(formatValue(alliance?.rank));
+  const masterUsername = escapeHtml(formatValue(alliance?.masterUsername));
+  const totalPower = escapeHtml(formatCompactNumber(alliance?.total_power ?? 0));
+  const memberCount = escapeHtml(formatValue(alliance?.memberCount, '0'));
+  const createdAt = escapeHtml(formatValue(alliance?.createdAt));
+
+  return `
+    <div class="calcium-player-section">
+      <div class="calcium-player-subtitle">Alliance</div>
+      <div class="calcium-table-wrap">
+        <table class="calcium-table">
+          <tbody>
+            <tr>
+              <th scope="row">Nom</th>
+              <td>${name}</td>
+            </tr>
+            <tr>
+              <th scope="row">Rang</th>
+              <td>${rank}</td>
+            </tr>
+            <tr>
+              <th scope="row">Chef</th>
+              <td>${masterUsername}</td>
+            </tr>
+            <tr>
+              <th scope="row">Puissance totale</th>
+              <td>${totalPower}</td>
+            </tr>
+            <tr>
+              <th scope="row">Membres</th>
+              <td>${memberCount}</td>
+            </tr>
+            <tr>
+              <th scope="row">Créée le</th>
+              <td>${createdAt}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function getGlobalTooltip() {
+  return document.getElementById("calcium-global-tooltip");
+}
+
+function buildTooltipHtml(trigger) {
+  const race = trigger.dataset.tooltipRace || "—";
+  const city = trigger.dataset.tooltipCity || "—";
+  const pve = trigger.dataset.tooltipPve || "0";
+  const pvp = trigger.dataset.tooltipPvp || "0";
+  const joined = trigger.dataset.tooltipJoined || "—";
+
+  return `
+    <span class="calcium-info-line">Race : ${race}</span>
+    <span class="calcium-info-line">City : ${city}</span>
+    <span class="calcium-info-line">PvE : ${pve}</span>
+    <span class="calcium-info-line">PvP : ${pvp}</span>
+    <span class="calcium-info-line">Entrée : ${joined}</span>
+  `;
+}
+
+function positionTooltip(trigger, tooltip) {
+  const rect = trigger.getBoundingClientRect();
+  const spacing = 10;
+  const viewportPadding = 8;
+
+  tooltip.classList.add("is-visible");
+  tooltip.style.left = "0px";
+  tooltip.style.top = "0px";
+
+  const tooltipRect = tooltip.getBoundingClientRect();
+
+  let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+  let top = rect.top - tooltipRect.height - spacing;
+
+  if (top < viewportPadding) {
+    top = rect.bottom + spacing;
+  }
+
+  if (left < viewportPadding) {
+    left = viewportPadding;
+  }
+
+  if (left + tooltipRect.width > window.innerWidth - viewportPadding) {
+    left = window.innerWidth - tooltipRect.width - viewportPadding;
+  }
+
+  if (top + tooltipRect.height > window.innerHeight - viewportPadding) {
+    top = Math.max(viewportPadding, rect.top - tooltipRect.height - spacing);
+  }
+
+  tooltip.style.left = `${Math.round(left)}px`;
+  tooltip.style.top = `${Math.round(top)}px`;
+}
+
+function showGlobalTooltip(trigger) {
+  const tooltip = getGlobalTooltip();
+  if (!tooltip) return;
+
+  tooltip.innerHTML = buildTooltipHtml(trigger);
+  tooltip.setAttribute("aria-hidden", "false");
+  tooltip.dataset.owner = "active";
+  positionTooltip(trigger, tooltip);
+}
+
+function hideGlobalTooltip() {
+  const tooltip = getGlobalTooltip();
+  if (!tooltip) return;
+
+  tooltip.classList.remove("is-visible");
+  tooltip.setAttribute("aria-hidden", "true");
+  tooltip.innerHTML = "";
+  delete tooltip.dataset.owner;
+}
+
+function bindAllianceTooltips(scope = document) {
+  scope.querySelectorAll(".calcium-info-trigger").forEach((button) => {
+    button.addEventListener("mouseenter", () => {
+      showGlobalTooltip(button);
+    });
+
+    button.addEventListener("focus", () => {
+      showGlobalTooltip(button);
+    });
+
+    button.addEventListener("mouseleave", () => {
+      hideGlobalTooltip();
+    });
+
+    button.addEventListener("blur", () => {
+      hideGlobalTooltip();
+    });
+
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (getGlobalTooltip()?.classList.contains("is-visible")) {
+        hideGlobalTooltip();
+      } else {
+        showGlobalTooltip(button);
+      }
+    });
+  });
+}
+
+function renderAllianceMembersTable(alliance) {
+  const members = Array.isArray(alliance?.members) ? alliance.members : [];
+
+  if (!members.length) {
+    return `
+      <div class="calcium-player-section">
+        <div class="calcium-player-subtitle">Membres</div>
+        <div class="calcium-actions-empty">Aucun membre disponible</div>
+      </div>
+    `;
+  }
+
+  const sortedMembers = [...members].sort((a, b) => {
+    return Number(b?.player?.power || 0) - Number(a?.player?.power || 0);
+  });
+
+  const rows = sortedMembers.map((member) => {
+    const player = member?.player || {};
+    const username = escapeHtml(formatValue(player?.username));
+    const power = escapeHtml(formatCompactNumber(player?.power ?? 0));
+    const premium = formatBooleanBadge(!!player?.has_premium, 'Premium', 'Standard');
+    const grade = escapeHtml(formatAllianceGrade(member?.grade));
+    const dragonLevel = escapeHtml(formatValue(member?.dragon_level, '0'));
+    const city = escapeHtml(formatCoordinates(member?.city_coordinates));
+
+    const race = escapeHtml(formatValue(player?.race));
+    const pvePower = escapeHtml(formatCompactNumber(player?.pvePower ?? 0));
+    const pvpPower = escapeHtml(formatCompactNumber(player?.pvpPower ?? 0));
+    const joinedAt = escapeHtml(formatValue(member?.joinedAt));
+    const playerUuid = escapeHtml(formatValue(player?.uuid));
+    const memberUuid = escapeHtml(formatValue(member?.uuid));
+
+    return `
+      <tr class="calcium-alliance-row">
+        <td>
+          <div class="calcium-building-cell">
+            <div class="calcium-alliance-member-main">
+              <div class="calcium-alliance-member-head">
+                <span class="calcium-building-name">${username}</span>
+
+                <button
+                  type="button"
+                  class="calcium-info-trigger"
+                  aria-label="Informations sur ${username}"
+                  data-tooltip-race="${escapeHtml(formatValue(race))}"
+                  data-tooltip-city="${escapeHtml(formatValue(city))}"
+                  data-tooltip-pve="${escapeHtml(formatCompactNumber(pvePower))}"
+                  data-tooltip-pvp="${escapeHtml(formatCompactNumber(pvpPower))}"
+                  data-tooltip-joined="${escapeHtml(formatValue(joinedAt))}"
+                >
+                  i
+                </button>
+              </div>
+            </div>
+          </div>
+        </td>
+        <td>${power}</td>
+        <td>${premium}</td>
+        <td>${grade}</td>
+        <td>${dragonLevel}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `
+    <div class="calcium-player-section">
+      <div class="calcium-player-subtitle">Membres</div>
+      <div class="calcium-table-wrap">
+        <table class="calcium-table">
+          <thead>
+            <tr>
+              <th scope="col">Nom</th>
+              <th scope="col">Power</th>
+              <th scope="col">Premium</th>
+              <th scope="col">Grade</th>
+              <th scope="col">Dragon</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function renderAlliancePanel() {
+  const panel = document.getElementById("calcium-alliance-panel");
+  const calcium = UI_STATE.snapshot?.calcium;
+  const alliance = calcium?.Data?.Alliance;
+
+  if (!panel) return;
+
+  console.log("[ALLIANCE] snapshot =", UI_STATE.snapshot);
+  console.log("[ALLIANCE] calcium =", calcium);
+  console.log("[ALLIANCE] alliance =", alliance);
+
+  if (!alliance || !alliance.name) {
+    panel.innerHTML = `
+      <div class="calcium-player-title">Alliance</div>
+      <div class="calcium-player-text">
+        En attente du parsing du dataset alliance...
+      </div>
+    `;
+    return;
+  }
+
+  panel.innerHTML = `
+    ${renderAllianceOverview(alliance)}
+    ${renderAllianceMembersTable(alliance)}
+  `;
+
+  bindAllianceTooltips(panel);
 }
 
 function refreshCountdownElements() {
@@ -1124,33 +1505,59 @@ function stopCountdownRefresh() {
 function renderAll() {
   rebuildCategoryOptions();
   renderPlayerPanel();
+  renderAlliancePanel();
   refreshCountdownElements();
   startCountdownRefresh();
 }
 
 function bindStaticEvents() {
-  document.querySelectorAll('.calcium-main-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      setActiveMainTab(tab.dataset.mainTab);
+  document.querySelectorAll('.ext-filter-tab').forEach(button => {
+    button.addEventListener('click', () => {
+      setFilter(button.dataset.filter);
     });
   });
 
-  document.querySelectorAll('.ext-filter-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      setFilter(tab.dataset.filter);
+  const searchInput = document.getElementById('ext-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (event) => {
+      setSearchText(event.target.value || '');
     });
-  });
+  }
 
-  document.getElementById('ext-search-input').addEventListener('input', (event) => {
-    setSearchText(event.target.value);
-  });
+  const selectEl = document.getElementById('ext-data-select');
+  if (selectEl) {
+    selectEl.addEventListener('change', () => {
+      refreshSelectedDataView();
+    });
+  }
 
-  document.getElementById('ext-data-select').addEventListener('change', refreshSelectedDataView);
-  document.getElementById('refresh-view-btn').addEventListener('click', loadState);
-  document.getElementById('token-refresh-btn').addEventListener('click', refreshToken);
+  const refreshBtn = document.getElementById('refresh-view-btn');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', () => {
+      loadState();
+    });
+  }
+
+  const tokenRefreshBtn = document.getElementById('token-refresh-btn');
+  if (tokenRefreshBtn) {
+    tokenRefreshBtn.addEventListener('click', () => {
+      refreshToken();
+    });
+  }
 }
 
-bindStaticEvents();
-connectLiveUpdates();
-setActiveMainTab('datas');
-loadState();
+function init() {
+  syncStaticUiVisibility();
+  bindStaticEvents();
+  renderMainTabs();
+  connectLiveUpdates();
+  setActiveMainTab(UI_STATE.activeMainTab || 'joueur');
+  setActivePlayerSubTab(UI_STATE.activePlayerSubTab || 'general');
+  loadState();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init, { once: true });
+} else {
+  init();
+}

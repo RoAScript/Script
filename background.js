@@ -1,4 +1,5 @@
 const sidePanelPorts = new Set();
+const lastSnapshotsByTabId = new Map();
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel
@@ -10,6 +11,16 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
     .catch((error) => console.error('[Calcium][background] sidePanel behavior error:', error));
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  lastSnapshotsByTabId.delete(tabId);
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status === 'loading') {
+    lastSnapshotsByTabId.delete(tabId);
+  }
 });
 
 chrome.runtime.onConnect.addListener((port) => {
@@ -78,7 +89,42 @@ function forwardToActiveTab(payload, sendResponse) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'CALCIUM_GET_ACTIVE_TAB_STATE') {
-    forwardToActiveTab({ type: 'CALCIUM_GET_STATE' }, sendResponse);
+    getActiveTab()
+      .then((activeTab) => {
+        if (!activeTab?.id) {
+          sendResponse({ ok: false, error: 'NO_ACTIVE_TAB' });
+          return;
+        }
+
+        const cachedSnapshot = lastSnapshotsByTabId.get(activeTab.id);
+        if (cachedSnapshot) {
+          sendResponse({ ok: true, snapshot: cachedSnapshot, source: 'cache' });
+          return;
+        }
+
+        chrome.tabs.sendMessage(activeTab.id, { type: 'CALCIUM_GET_STATE' }, (response) => {
+          if (chrome.runtime.lastError) {
+            sendResponse({
+              ok: false,
+              error: chrome.runtime.lastError.message
+            });
+            return;
+          }
+
+          if (response?.ok && response?.snapshot) {
+            lastSnapshotsByTabId.set(activeTab.id, response.snapshot);
+          }
+
+          sendResponse(response || { ok: false, error: 'NO_RESPONSE' });
+        });
+      })
+      .catch((error) => {
+        sendResponse({
+          ok: false,
+          error: error?.message || String(error)
+        });
+      });
+
     return true;
   }
 
@@ -104,10 +150,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message?.type === 'CALCIUM_STATE_UPDATED') {
+    const tabId = sender?.tab?.id;
+
+    if (tabId != null && message.snapshot) {
+      lastSnapshotsByTabId.set(tabId, message.snapshot);
+      console.log('[Calcium][background] Snapshot mis en cache pour tabId =', tabId);
+    }
+
     broadcastToSidePanels({
       type: 'CALCIUM_STATE_UPDATED',
       snapshot: message.snapshot,
-      reason: message.reason || 'unknown'
+      reason: message.reason || 'unknown',
+      tabId: tabId ?? null
     });
 
     sendResponse({ ok: true });

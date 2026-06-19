@@ -458,19 +458,17 @@
     method = 'GET',
     requestBody = null
   ) {
-    const parsed = safeJsonParse(text);
+    const trimmedText = safeText(text).trim();
+    const hasBody = trimmedText.length > 0;
+
     console.log('Calcium', transport, 'candidate', {
       url,
       contentType,
-      hasBody: !!text,
+      hasBody,
       preview: previewText(text)
     });
 
-    if (!parsed) return false;
-
-    inspectAuthData(url, parsed, headers, requestHeaders);
-
-    const category = normalizeUrlToCategory(url, parsed);
+    const category = normalizeUrlToCategory(url, null);
 
     pushRequestMeta(category, {
       capturedAt: Date.now(),
@@ -479,8 +477,47 @@
       method: safeText(method || 'GET').toUpperCase(),
       headers: sanitizeHeaders(headersToObject(requestHeaders)),
       query: getQueryParamsObject(url),
-      post: parseRequestBody(requestBody)
+      post: parseRequestBody(requestBody),
+      responseHeaders: sanitizeHeaders(headersToObject(headers)),
+      emptyBody: !hasBody
     });
+
+    if (!hasBody) {
+      const result = mergeCategoryData(category, {
+        __calciumEmptyResponse: true,
+        kind: 'empty-body',
+        body: 'Response body is empty',
+        contentType: safeText(contentType),
+        capturedAt: Date.now()
+      });
+
+      STATE.lastCaptureAt = Date.now();
+      STATE.datasetReady = false;
+      scheduleDatasetCheck();
+
+      console.log(
+        `%cCalcium Capture pour ${category}`,
+        'color:#50fa7b;font-weight:bold',
+        {
+          url,
+          transport,
+          added: result.added,
+          total: result.total,
+          requests: result.requests,
+          emptyBody: true
+        }
+      );
+
+      emitChange();
+      return true;
+    }
+
+    if (!isJsonCandidate(contentType, text)) return false;
+
+    const parsed = safeJsonParse(text);
+    if (!parsed) return false;
+
+    inspectAuthData(url, parsed, headers, requestHeaders);
 
     const result = mergeCategoryData(category, parsed);
 

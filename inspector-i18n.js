@@ -94,6 +94,19 @@
       misc: "Misc",
       resources: "Ressources",
     },
+    quest_category: {
+      resources: "Ressources",
+      troops: "Troupes",
+      city: "Ville",
+      conquest: "Conquêtes",
+      defense: "Défense",
+      great_dragon: "Grand dragon",
+      military: "Militaire",
+      other: "Autre",
+      population: "Population",
+      science_and_research: "Centre de recherches",
+      infrastructure: "Infrastructure"
+    },
     item: {
       blast: "Blast",
       blink: "Blink",

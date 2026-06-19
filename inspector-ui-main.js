@@ -10,6 +10,7 @@
   const API = Inspector.api;
 
   const Calcium = {
+    bearer: null,
     guid: {
       account: null,
       player: null,
@@ -30,6 +31,8 @@
         building: [],
         troop: [],
         items: [],
+        settlements: [],
+        quests: [],
       },
       Actions: [],
       Buildings: [],
@@ -40,6 +43,8 @@
       Resource: [],
       Troop: [],
       Item: [],
+      Settlement: [],
+      Quest: [],
     }
   };
 
@@ -190,6 +195,7 @@
         level: existing?.level ?? buildingData.level ?? 0,
         plot: buildingData.plot,
         uuid: buildingData.uuid,
+        settlement: buildingData.settlement,
         status: existing?.status ?? buildingData.status ?? null,
         label: getBuildingLabel(buildingData.definitionId, 'fr')
       };
@@ -311,6 +317,30 @@ function initAllianceData() {
     Calcium.Data.Player.items = userData;
   }
 
+  function initSettlementData() {
+    const categoryDefKey = `api.definitions.settlement`;
+    const rawDefCategory = STATE.dataByCategory[categoryDefKey];
+    const defData = rawDefCategory?.[0]?.member ?? [];
+    Calcium.Data.Settlement = defData;
+
+    const categoryUserKey = `api.players.${Calcium.guid.player}.settlements`;
+    const rawUserCategory = STATE.dataByCategory[categoryUserKey];
+    const userData = rawUserCategory?.[0]?.member ?? [];
+    Calcium.Data.Player.settlements = userData;
+  }
+
+  function initQuestData() {
+    const categoryDefKey = `api.definitions.quest`;
+    const rawDefCategory = STATE.dataByCategory[categoryDefKey];
+    const defData = rawDefCategory?.[0]?.member ?? [];
+    Calcium.Data.Quest = defData;
+
+    const categoryUserKey = `api.players.${Calcium.guid.player}.quests`;
+    const rawUserCategory = STATE.dataByCategory[categoryUserKey];
+    const userData = rawUserCategory?.[0]?.member ?? [];
+    Calcium.Data.Player.quests = userData;
+  }
+
   function refreshAllComputedData() {
     initDiscoverData();
     initRealmData();
@@ -321,6 +351,8 @@ function initAllianceData() {
     initResourceData();
     initAllianceData();
     initTroopData();
+    initSettlementData();
+    initQuestData();
     initItemData();
   }
 
@@ -605,20 +637,147 @@ function initAllianceData() {
     }
   }
 
+  function registerResearchUpgradeActionFromResponse(responseJson) {
+    try {
+      const upgrade = Array.isArray(responseJson) ? responseJson[0] : responseJson;
+      if (!upgrade || !upgrade.definitionId || !upgrade.uuid) {
+        console.warn('[Calcium][research-upgrade] Réponse invalide ou vide:', responseJson);
+        return false;
+      }
+
+      const researchDefs = Calcium?.Data?.Search;
+      const actions = Calcium?.Data?.Actions;
+      const playerResearches = Calcium?.Data?.Player?.search || [];
+
+      if (!Array.isArray(researchDefs) || !Array.isArray(actions)) {
+        console.warn('[Calcium][research-upgrade] Données Search/Actions indisponibles.');
+        return false;
+      }
+
+      const definitionId = String(upgrade.definitionId);
+      const researchUuid = String(upgrade.uuid);
+      const currentLevel = Number(upgrade.level || 0);
+      const targetLevel = currentLevel + 1;
+
+      const researchDef = researchDefs.find(entry => String(entry?.id || '') === definitionId);
+      if (!researchDef) {
+        console.warn('[Calcium][research-upgrade] Définition introuvable pour:', definitionId);
+        return false;
+      }
+
+      const baseDuration = Number(researchDef.duration || 0);
+      if (!baseDuration) {
+        console.warn(
+          '[Calcium][research-upgrade] Duration absente/invalide pour',
+          definitionId
+        );
+        return false;
+      }
+
+      const computedDuration = Math.max(1, Math.floor(baseDuration * Math.pow(2, currentLevel)));
+
+      const playerResearch = playerResearches.find(
+        research => String(research?.uuid || '') === researchUuid
+      );
+
+      if (playerResearch) {
+        playerResearch.definitionId = definitionId;
+        playerResearch.level = currentLevel;
+        playerResearch.status = upgrade.status || 'searching';
+      } else {
+        console.warn(
+          '[Calcium][research-upgrade] Recherche joueur introuvable par uuid:',
+          researchUuid
+        );
+      }
+
+      const alreadyExists = actions.some(action =>
+        action?.finished !== true &&
+        String(action?.entity || '').endsWith('Research') &&
+        action?.metadata?.research_uuid === researchUuid &&
+        Number(action?.metadata?.targetLevel) === targetLevel
+      );
+
+      if (alreadyExists) {
+        console.log(
+          '[Calcium][research-upgrade] Action déjà présente pour',
+          definitionId,
+          'uuid',
+          researchUuid,
+          'niveau',
+          targetLevel
+        );
+        return false;
+      }
+
+      const nowMs = Date.now();
+      const startAt = new Date(nowMs).toISOString();
+      const endAt = new Date(nowMs + computedDuration * 1000).toISOString();
+
+      const action = {
+        uuid: `research-upgrade-${researchUuid}-${targetLevel}`,
+        entity: 'App\\\\Entity\\\\Research',
+        calciumEntity: 'research',
+        startAt,
+        endAt,
+        remainingTime: computedDuration,
+        finished: false,
+        metadata: {
+          type: 'upgrade',
+          category: 'research',
+          derived: true,
+          research_uuid: researchUuid,
+          definitionId,
+          currentLevel,
+          targetLevel,
+          baseDuration,
+          computedDuration,
+          status: upgrade.status || null
+        }
+      };
+
+      actions.push(action);
+
+      console.log(
+        '[Calcium][research-upgrade] Action créée:',
+        action,
+        'baseDuration =', baseDuration,
+        'currentLevel =', currentLevel,
+        'computedDuration =', computedDuration
+      );
+
+      return true;
+    } catch (error) {
+      console.error('[Calcium][research-upgrade] Erreur création action:', error);
+      return false;
+    }
+  }
+
   function tryRegisterDerivedActionsFromDatasets() {
     let hasMutation = false;
 
     Object.entries(STATE.dataByCategory || {}).forEach(([categoryKey, entries]) => {
-      if (!/api\.buildings\.[^.]+\.upgrade/.test(categoryKey)) return;
-
       const payloads = Array.isArray(entries) ? entries : [];
-      payloads.forEach(entry => {
-        const response = entry?.response ?? entry?.data ?? entry;
-        const didCreate = registerBuildingUpgradeActionFromResponse(response);
-        if (didCreate) {
-          hasMutation = true;
-        }
-      });
+
+      if (/api\.buildings\.[^.]+\.upgrade/.test(categoryKey)) {
+        payloads.forEach(entry => {
+          const response = entry?.response ?? entry?.data ?? entry;
+          const didCreate = registerBuildingUpgradeActionFromResponse(response);
+          if (didCreate) {
+            hasMutation = true;
+          }
+        });
+      }
+
+      if (/api\.researches\.[^.]+\.upgrade/.test(categoryKey)) {
+        payloads.forEach(entry => {
+          const response = entry?.response ?? entry?.data ?? entry;
+          const didCreate = registerResearchUpgradeActionFromResponse(response);
+          if (didCreate) {
+            hasMutation = true;
+          }
+        });
+      }
     });
 
     return hasMutation;
@@ -673,6 +832,16 @@ function initAllianceData() {
         snapshot
       }
     });
+
+    try {
+      chrome.runtime.sendMessage({
+        type: 'CALCIUM_STATE_UPDATED',
+        snapshot,
+        reason
+      });
+    } catch (error) {
+      console.warn('[Calcium] Impossible de notifier le background:', error);
+    }
 
     return snapshot;
   }

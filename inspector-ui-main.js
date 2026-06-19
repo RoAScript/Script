@@ -596,7 +596,7 @@ function initAllianceData() {
 
       const action = {
         uuid: `building-upgrade-${buildingUuid}-${targetLevel}`,
-        entity: 'App\\\\Entity\\\\Building',
+        entity: 'App\\Entity\\Building',
         calciumEntity: 'building',
         plot,
         startAt,
@@ -716,7 +716,7 @@ function initAllianceData() {
 
       const action = {
         uuid: `research-upgrade-${researchUuid}-${targetLevel}`,
-        entity: 'App\\\\Entity\\\\Research',
+        entity: 'App\\Entity\\Research',
         calciumEntity: 'research',
         startAt,
         endAt,

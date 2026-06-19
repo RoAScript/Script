@@ -1591,8 +1591,6 @@ function buildQuestGroupsAccordion(groups) {
                 <th scope="col">Quête</th>
                 <th scope="col">Niv.</th>
                 <th scope="col">Statut</th>
-                <th scope="col">Prog.</th>
-                <th scope="col">Récompense</th>
                 <th scope="col">Infos</th>
               </tr>
             </thead>
@@ -1616,8 +1614,6 @@ function buildQuestGroupRows(items) {
           ${escapeHtml(quest.statusLabel)}
         </span>
       </td>
-      <td>${escapeHtml(String(quest.progress ?? 0))}</td>
-      <td>${escapeHtml(quest.rewardText || '-')}</td>
       <td>${buildQuestInfoButton(quest)}</td>
     </tr>
   `).join('');

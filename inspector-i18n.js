@@ -131,6 +131,7 @@
       mass_nullifier: "Destructeur",
       purple_bones: "Os violet",
       resource_chest_250k: "Coffre ressource 250k",
+      resource_chest_500k: "Coffre ressource 500k",
       skip: "Skip",
       testronius_dust: "Poussière testro",
       testronius_powder: "Poudre testro",
@@ -145,6 +146,7 @@
       cursed_chest: "Coffre malédiction",
       combat_buffs_chest: "Coffre de combat",
       chronos_satchel: "Sacoche Chronos",
+      cease_fire_treaty: "Cessez le feu"
     }
   };
 })();

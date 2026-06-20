@@ -22,6 +22,7 @@
         members: [],
       },
       Player: {
+        uuid: null,
         username: null,
         power: 0,
         tax: 0,
@@ -37,9 +38,7 @@
       Actions: [],
       Buildings: [],
       Search: [],
-      Realm: {
-        name: null,
-      },
+      Realm: [],
       Resource: [],
       Troop: [],
       Item: [],
@@ -161,14 +160,22 @@
     Calcium.guid.alliance = ids.find(v => v.startsWith('/alliances/') && !v.includes('/members'))?.split('/')[2] || null;
   }
 
+  function initTokenRefresh() {
+    const tokenData = STATE.dataByCategory?.['api.token.refresh'] || [];
+    const entry = tokenData[tokenData.length - 1] || null;
+
+    Calcium.bearer = entry?.token || null;
+  }
+
   function initRealmData() {
     const realmData = STATE.dataByCategory['api.realms'] || [];
-    Calcium.Data.Realm.name = realmData?.[0]?.member?.[0]?.name || null;
+    Calcium.Data.Realm = realmData?.[0]?.member?.[0];
   }
 
   function initPlayerData() {
     const playerData = STATE.dataByCategory[`api.accounts.${Calcium.guid.account}.players`]?.[0]?.member?.[0] || null;
 
+    Calcium.Data.Player.uuid = playerData?.uuid;
     Calcium.Data.Player.username = playerData?.username || null;
     Calcium.Data.Player.level = playerData?.level || 0;
     Calcium.Data.Player.power = playerData?.power || 0;
@@ -354,6 +361,7 @@ function initAllianceData() {
     initSettlementData();
     initQuestData();
     initItemData();
+    initTokenRefresh();
   }
 
   async function doRefreshToken() {

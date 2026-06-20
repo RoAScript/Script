@@ -24,10 +24,10 @@ const UI_STATE = {
   activeAllianceSubTab: 'general',
   activeItemCategory: 'all',
   activeBuildingSettlement: "all",
-  showTopHeaderPanel: true,
-  showPlayerSummary: true,
+  showTopHeaderPanel: false,
   showDataTab: true,
   showAllianceTab: true,
+  showCalciumTab: true,
   snapshot: null,
   countdownInterval: null,
   port: null,
@@ -38,7 +38,8 @@ function getMainTabs() {
   return [
     { id: 'datas', label: 'Datas', visible: UI_STATE.showDataTab },
     { id: 'joueur', label: 'Joueur', visible: true },
-    { id: 'alliance', label: 'Alliance', visible: UI_STATE.showAllianceTab }
+    { id: 'alliance', label: 'Alliance', visible: UI_STATE.showAllianceTab },
+    { id: 'calcium', label: 'Calcium', visible: UI_STATE.showCalciumTab }
   ].filter(tab => tab.visible);
 }
 
@@ -348,6 +349,8 @@ function setActiveMainTab(tabId) {
     refreshSelectedDataView();
   } else if (UI_STATE.activeMainTab === 'alliance') {
     renderAlliancePanel();
+  } else if (UI_STATE.activeMainTab === 'calcium') {
+    renderCalciumPanel();
   }
 }
 
@@ -814,34 +817,6 @@ function renderPlayerGeneralTab(calcium) {
       <div class="calcium-player-subtitle">Actions en cours</div>
       ${buildActionsOverview(calcium)}
     </div>
-
-    ${UI_STATE.showPlayerSummary ? `
-      <div class="calcium-player-section">
-        <div class="calcium-player-subtitle">Résumé</div>
-        <div class="calcium-table-wrap">
-          <table class="calcium-table">
-            <tbody>
-              <tr>
-                <th scope="row">Account UUID</th>
-                <td><code>${escapeHtml(formatValue(calcium?.guid?.account))}</code></td>
-              </tr>
-              <tr>
-                <th scope="row">Player UUID</th>
-                <td><code>${escapeHtml(formatValue(calcium?.guid?.player))}</code></td>
-              </tr>
-              <tr>
-                <th scope="row">Realm UUID</th>
-                <td><code>${escapeHtml(formatValue(calcium?.guid?.realm))}</code></td>
-              </tr>
-              <tr>
-                <th scope="row">Alliance UUID</th>
-                <td><code>${escapeHtml(formatValue(calcium?.guid?.alliance))}</code></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    ` : ''}
   `;
 }
 
@@ -1610,7 +1585,7 @@ function buildQuestGroupRows(items) {
       <td>${escapeHtml(quest.label || quest.definitionId || 'Quête inconnue')}</td>
       <td>${escapeHtml(String(quest.level ?? 0))}</td>
       <td>
-        <span class="calcium-badge calcium-badge--${escapeHtml(quest.statusTone)}">
+        <span class="calcium-badge calcium-badge-${escapeHtml(quest.statusTone)}">
           ${escapeHtml(quest.statusLabel)}
         </span>
       </td>
@@ -1906,6 +1881,106 @@ function renderAllianceMembersTable(alliance) {
   `;
 }
 
+function renderCalciumPanel() {
+  const panel = document.getElementById('calcium-calcium-panel');
+  const calcium = UI_STATE.snapshot?.calcium || null;
+
+  if (!panel) return;
+
+  if (!calcium) {
+    panel.innerHTML = `
+      <div class="calcium-actions-empty">Aucune donnée Calcium disponible</div>
+    `;
+    return;
+  }
+
+  panel.innerHTML = `
+    <section class="calcium-player-section">
+      <div class="calcium-player-subtitle">Explorateur Calcium</div>
+      <div class="calcium-tree-toolbar">
+        <button type="button" class="calcium-btn-secondary" data-tree-action="expand-all">Tout ouvrir</button>
+        <button type="button" class="calcium-btn-secondary" data-tree-action="collapse-all">Tout fermer</button>
+      </div>
+      <div class="calcium-tree-root">
+        ${renderTreeNode('calcium', calcium, 'calcium')}
+      </div>
+    </section>
+  `;
+}
+
+function escapeTreeValue(value) {
+  return escapeHtml(String(value));
+}
+
+function getValueType(value) {
+  if (Array.isArray(value)) return 'array';
+  if (value === null) return 'null';
+  return typeof value;
+}
+
+function renderTreeNode(key, value, path = '', depth = 0) {
+  const type = getValueType(value);
+
+  if (type === 'array') {
+    const count = value.length;
+    const isOpen = depth < 2;
+
+    return `
+      <details class="calcium-tree-node calcium-tree-branch" ${isOpen ? 'open' : ''}>
+        <summary class="calcium-tree-summary">
+          <span class="calcium-tree-key">${escapeTreeValue(key)}</span>
+          <span class="calcium-tree-meta">Array(${count})</span>
+        </summary>
+        <div class="calcium-tree-children">
+          ${count
+            ? value.map((item, index) => renderTreeNode(`[${index}]`, item, `${path}[${index}]`, depth + 1)).join('')
+            : `<div class="calcium-tree-leaf"><span class="calcium-tree-empty">[]</span></div>`
+          }
+        </div>
+      </details>
+    `;
+  }
+
+  if (type === 'object') {
+    const entries = Object.entries(value || {});
+    const isOpen = depth < 2;
+
+    return `
+      <details class="calcium-tree-node calcium-tree-branch" ${isOpen ? 'open' : ''}>
+        <summary class="calcium-tree-summary">
+          <span class="calcium-tree-key">${escapeTreeValue(key)}</span>
+          <span class="calcium-tree-meta">Object(${entries.length})</span>
+        </summary>
+        <div class="calcium-tree-children">
+          ${entries.length
+            ? entries.map(([childKey, childValue]) =>
+                renderTreeNode(childKey, childValue, path ? `${path}.${childKey}` : childKey, depth + 1)
+              ).join('')
+            : `<div class="calcium-tree-leaf"><span class="calcium-tree-empty">{}</span></div>`
+          }
+        </div>
+      </details>
+    `;
+  }
+
+  return `
+    <div class="calcium-tree-node calcium-tree-leaf">
+      <span class="calcium-tree-key">${escapeTreeValue(key)}</span>
+      <span class="calcium-tree-separator">:</span>
+      <span class="calcium-tree-value calcium-tree-value-${type}">
+        ${escapeTreeValue(formatTreePrimitive(value))}
+      </span>
+    </div>
+  `;
+}
+
+function formatTreePrimitive(value) {
+  if (value === null) return 'null';
+  if (typeof value === 'string') return `"${value}"`;
+  if (typeof value === 'undefined') return 'undefined';
+  return String(value);
+}
+
 function renderAlliancePanel() {
   const panel = document.getElementById("calcium-alliance-panel");
   const calcium = UI_STATE.snapshot?.calcium;
@@ -2002,6 +2077,25 @@ function bindStaticEvents() {
       refreshToken();
     });
   }
+
+  document.addEventListener('click', (event) => {
+    const action = event.target?.dataset?.treeAction;
+    if (!action) return;
+
+    const root = document.querySelector('.calcium-tree-root');
+    if (!root) return;
+
+    const nodes = root.querySelectorAll('details.calcium-tree-branch');
+
+    if (action === 'expand-all') {
+      nodes.forEach(node => { node.open = true; });
+    }
+
+    if (action === 'collapse-all') {
+      nodes.forEach(node => { node.open = false; });
+    }
+  });
+  
 }
 
 function init() {

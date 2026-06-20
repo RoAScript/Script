@@ -831,6 +831,24 @@ code {
   margin-top: 4px;
 }
 
+.calcium-badge-claimable {
+  background: #4a3412;
+  color: #ffd37a;
+  border: 1px solid #6b4a19;
+}
+
+.calcium-badge-progress {
+  background: #132f4c;
+  color: #7dc7ff;
+  border: 1px solid #1f4e7a;
+}
+
+.calcium-badge-claimed {
+  background: #153d2e;
+  color: #7ff0b2;
+  border: 1px solid #245942;
+}
+
 .calcium-badge-success {
   background: #153d2e;
   color: #7ff0b2;
@@ -882,7 +900,7 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 6px 8px;
   cursor: pointer;
   list-style: none;
 }
@@ -897,7 +915,7 @@ code {
 }
 
 .calcium-quest-group-meta {
-  font-size: 12px;
+  font-size: 10px;
   color: #9aa6bf;
 }
 
@@ -964,6 +982,155 @@ code {
 
 .calcium-info-line + .calcium-info-line {
   margin-top: 4px;
+}
+
+.calcium-tree-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.calcium-tree-root {
+  padding: 8px 10px;
+  border: 1px solid #374151;
+  border-radius: 10px;
+  background: #0f172a;
+  overflow-x: auto;
+  overflow-y: auto;
+  white-space: nowrap;
+  max-height: calc(100vh - 220px);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
+.calcium-tree-node {
+  color: #e5e7eb;
+}
+
+.calcium-tree-branch {
+  margin-left: 0px;
+}
+
+.calcium-tree-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+  padding: 2px 0;
+  white-space: nowrap;
+}
+
+.calcium-tree-summary::-webkit-details-marker {
+  display: none;
+}
+
+.calcium-tree-summary::before {
+  content: '▸';
+  color: #93c5fd;
+  font-size: 11px;
+  width: 10px;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.calcium-tree-branch[open] > .calcium-tree-summary::before {
+  content: '▾';
+}
+
+.calcium-tree-children {
+  margin-left: 8px;
+  padding-left: 5px;
+  border-left: 1px dashed rgba(148, 163, 184, 0.22);
+}
+
+.calcium-tree-leaf {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  padding: 2px 0;
+  flex-wrap: nowrap;
+  width: max-content;
+  min-width: 100%;
+  white-space: nowrap;
+}
+
+.calcium-tree-key {
+  color: #93c5fd;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.calcium-tree-meta {
+  color: #7c8799;
+  white-space: nowrap;
+}
+
+.calcium-tree-separator {
+  color: #64748b;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.calcium-tree-value {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.calcium-tree-value-string {
+  color: #86efac;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.calcium-tree-value-number {
+  color: #fca5a5;
+}
+
+.calcium-tree-value-boolean {
+  color: #fcd34d;
+}
+
+.calcium-tree-value-null,
+.calcium-tree-value-undefined {
+  color: #a78bfa;
+  font-style: italic;
+}
+
+.calcium-tree-empty {
+  color: #64748b;
+  font-style: italic;
+}
+
+#calcium-calcium-panel,
+.calcium-player-section {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.calcium-tab-panel.active {
+  height: 100%;
+  min-height: 0;
+}
+
+.calcium-panel {
+  height: calc(100vh - 80px);
+  min-height: 0;
+}
+
+.calcium-tree-summary:hover,
+.calcium-tree-leaf:hover {
+  background: rgba(147, 197, 253, 0.14);
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar {

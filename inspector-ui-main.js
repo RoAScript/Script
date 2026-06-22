@@ -896,11 +896,140 @@ function initAllianceData() {
       return await doRefreshToken();
     }
 
+    if (data?.type === 'CALCIUM_API_REQUEST') {
+      return await calciumApiFetch(data.path, {
+        method: data.method || 'GET',
+        json: data.json,
+        headers: data.headers || {}
+      });
+    }
+
     return {
       ok: false,
       error: 'UNKNOWN_REQUEST'
     };
   }
+
+  function findClientIdFromCapturedRequests() {
+    if (STATE.currentClientId) return STATE.currentClientId;
+
+    const categories = Object.keys(STATE.requestMetaByCategory || {});
+    for (const category of categories) {
+      if (!category.startsWith('api.definitions.')) continue;
+
+      const metas = STATE.requestMetaByCategory[category] || [];
+      for (let i = metas.length - 1; i >= 0; i -= 1) {
+        const headers = metas[i]?.headers || {};
+        const clientId =
+          headers['x-auth-client-id'] ||
+          headers['X-Auth-Client-Id'] ||
+          null;
+
+        if (clientId) {
+          STATE.currentClientId = clientId;
+          return clientId;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  function getMandatorySessionHeaders({ withJson = false } = {}) {
+    const clientId = findClientIdFromCapturedRequests();
+    const bearer = Calcium?.bearer || null;
+    const realmId = Calcium?.guid?.realm || null;
+    const hpItem = Calcium?.Data?.Realm?.variables?.item_use_honey_pot_value ?? null;
+
+    const headers = new Headers();
+
+    headers.set('Accept', '*/*');
+
+    if (withJson) {
+      headers.set('Content-Type', 'application/json');
+    }
+
+    if (bearer) {
+      headers.set('Authorization', `Bearer ${bearer}`);
+    }
+
+    if (clientId) {
+      headers.set('X-Auth-Client-Id', String(clientId));
+    }
+
+    if (realmId) {
+      headers.set('X-Realm-Id', String(realmId));
+    }
+
+    if (hpItem !== null && hpItem !== undefined) {
+      headers.set('X-Roa-Hp-Item', String(hpItem));
+    }
+
+    return headers;
+  }
+
+  async function calciumApiFetch(path, {
+    method = 'GET',
+    json = undefined,
+    headers = {},
+    credentials = 'include'
+  } = {}) {
+    const finalHeaders = getMandatorySessionHeaders({ withJson: json !== undefined });
+
+    Object.entries(headers || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        finalHeaders.set(key, String(value));
+      }
+    });
+
+    const response = await window.fetch(path, {
+      method,
+      credentials,
+      cache: 'no-cache',
+      headers: finalHeaders,
+      body: json !== undefined ? JSON.stringify(json) : undefined
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    const text = await response.text();
+
+    let data = text;
+    if (contentType.includes('application/json')) {
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        // on garde text brut
+      }
+    }
+
+    return {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      data
+    };
+  }
+
+  async function useItem(playerUuid, itemUuid, quantity = 1) {
+    return calciumApiFetch(
+      `/api/players/${playerUuid}/items/${itemUuid}/use`,
+      {
+        method: 'POST',
+        json: { quantity }
+      }
+    );
+  }
+
+  async function useCurrentPlayerItem(itemUuid, quantity = 1) {
+    const playerUuid = Calcium?.guid?.player || Calcium?.Data?.Player?.uuid;
+    if (!playerUuid) {
+      return { ok: false, error: 'NO_PLAYER_UUID' };
+    }
+
+    return useItem(playerUuid, itemUuid, quantity);
+  }
+
 
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;

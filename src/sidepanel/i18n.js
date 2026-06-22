@@ -1,17 +1,14 @@
-(function () {
-  window.CalciumI18n = window.CalciumI18n || {};
-
-  window.CalciumI18n.fr = {
+export const CalciumI18n = {
+  fr: {
     general: {
         level: "Niveau",
         realm: "Royaume",
-        power: "Puis.",
+        power: "Puissance",
         building: "Bâtiment",
         battle: "Combat",
         research: "Recherche",
         troop: "Troupe",
-        quantity: "Qté",
-        level: "Niveau"
+        quantity: "Qté"
     },
     buildings: {
       dragon_keep: "Donjon du dragon",
@@ -108,20 +105,20 @@
       infrastructure: "Infrastructure"
     },
     item: {
-      blast: "Blast",
-      blink: "Blink",
-      blitz: "Blitz",
-      bolt: "Bolt",
-      bore: "Bore",
-      bounce: "Bounce",
+      blink: "Blink (1min)",
+      hop: "Hop (5min)",
+      skip: "Skip (15min)",
+      jump: "Jump (1hr)",
+      leap: "Leap (2,5hr)",
+      bounce: "Bounce (8hr)",
+      bore: "Bore (15hr)",
+      bolt: "Bolt (1jr)",
+      blast: "Blast (2,5jr)",
+      blitz: "Blitz (4jr)",
       charted_warp_device: "Téléporteur Premium",
       crimson_bull: "Taureau furieu",
       dragon_heart: "Coeur de dragon",
-      forced_march: "Marche forcée",
       glowing_shields: "Boucliers lumineux",
-      hop: "Hop",
-      jump: "Jump",
-      leap: "Leap",
       harvest_nano_1d: "Récolte nano 1jr",
       metals_nano_1d: "Métal nano 1jr",
       stone_nano_1d: "Pierre nano 1jr",
@@ -132,12 +129,13 @@
       purple_bones: "Os violet",
       resource_chest_250k: "Coffre ressource 250k",
       resource_chest_500k: "Coffre ressource 500k",
-      skip: "Skip",
-      testronius_dust: "Poussière testro",
-      testronius_powder: "Poudre testro",
-      testronius_infusion: "Infusion testro",
-      trance_march: "Marche en transe",
-      trance_march_elixir: "Elixir marche en transe",
+      testronius_dust: "Testro 15%",
+      testronius_powder: "Testro 30%",
+      testronius_deluxe: "Testro 50%",
+      testronius_infusion: "Testro 99%",
+      trance_march: "Transe 25%",
+      forced_march: "Marche forcée 50%",
+      trance_march_elixir: "Transe 50% & 24h",
       truce: "Paix",
       fortuna_ticket: "Ticket fortuna",
       fortuna_medallion: "Médaillon fortuna",
@@ -146,7 +144,23 @@
       cursed_chest: "Coffre malédiction",
       combat_buffs_chest: "Coffre de combat",
       chronos_satchel: "Sacoche Chronos",
-      cease_fire_treaty: "Cessez le feu"
+      cease_fire_treaty: "Cessez le feu",
+      great_dragon_armor_helmet: "Casque du dragon",
+      abyssal_demon_chest: "Coffre abyssal du démon",
+      infernal_blood_chest: "Coffre infernal du sang",
+      void_demon_chest: "Coffre démonniaque",
+      cursed_ember_chest: "Coffre de braise maudit",
+      random_troop_pack_100k_250k: "Pack aléa. 100k/200k",
+      random_troop_pack_1k_5k: "Pack aléa. 1k/5k",
+      random_troop_pack_5k_10k: "Pack aléa. 5k/10k",
+      elixir_pack_150k: "Pack elixir 150k",
+      completion_grant_portfolio: "Portefeuille de permis",
+      nomadic_recruits: "Nomades 20k",
+      nomadic_recruits_2: "Nomades 40k",
+      glowing_mandrake_pack_10k: "Pack mandragore 10k",
+      elixir_pack_250k: "Pack elixir 250k",
+      all_resources_pack_5m: "Pack toutes ressrouces 5M",
+      completion_grant: "Permis de construire"
     }
-  };
-})();
+  }
+};

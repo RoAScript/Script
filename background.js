@@ -167,4 +167,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: true });
     return false;
   }
+
+  if (message?.type === 'CALCIUM_API_REQUEST') {
+    forwardToActiveTab({
+      type: 'CALCIUM_API_REQUEST',
+      path: message.path,
+      method: message.method,
+      json: message.json,
+      headers: message.headers
+    }, sendResponse);
+    return true;
+  }
+
 });

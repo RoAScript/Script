@@ -73,6 +73,17 @@
           return await postToMain({ type: 'CALCIUM_REFRESH_TOKEN' });
         }
 
+        if (message?.type === 'CALCIUM_API_REQUEST') {
+          return await postToMain({
+            type: 'CALCIUM_API_REQUEST',
+            path: message.path,
+            method: message.method,
+            json: message.json,
+            headers: message.headers
+          });
+        }
+
+
         return { ok: false, error: 'UNKNOWN_MESSAGE' };
       })
       .then((response) => sendResponse(response))

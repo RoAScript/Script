@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Calcium",
-  "version": "0.2",
+  "version": "2026.630",
   "description": "Outil pour suivre son avancée dans RoA",
   "permissions": [
     "sidePanel",
@@ -21,10 +21,11 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*.riseofatlantis.fr/*"],
+      "matches": [
+        "https://*.riseofatlantis.fr/*"
+      ],
       "js": [
         "inspector-core.js",
-        "inspector-i18n.js",
         "inspector-ui-main.js"
       ],
       "run_at": "document_start",
@@ -33,7 +34,9 @@
       "match_origin_as_fallback": true
     },
     {
-      "matches": ["https://*.riseofatlantis.fr/*"],
+      "matches": [
+        "https://*.riseofatlantis.fr/*"
+      ],
       "js": [
         "inspector-ui-bridge.js"
       ],

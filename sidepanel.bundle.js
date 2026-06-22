@@ -1,3 +1,181 @@
+/* GENERATED FILE - Calcium full runtime bundle */
+(function () {
+'use strict';
+
+
+/* ===== MODULE: src/sidepanel/i18n.js ===== */
+
+const CalciumI18n = {
+  fr: {
+    general: {
+        level: "Niveau",
+        realm: "Royaume",
+        power: "Puissance",
+        building: "Bâtiment",
+        battle: "Combat",
+        research: "Recherche",
+        troop: "Troupe",
+        quantity: "Qté"
+    },
+    buildings: {
+      dragon_keep: "Donjon du dragon",
+      factory: "Usine",
+      farm: "Ferme",
+      fortress: "Forteresse",
+      fountain_of_life: "Fontaine de vie",
+      garrison: "Garnison",
+      home: "Maison",
+      lumbermill: "Scierie",
+      metalsmith: "Fonderie",
+      mine: "Mine",
+      muster_point: "Quartier Général",
+      quarry: "Carrière",
+      theater: "Théatre",
+      sentinel: "Sentinelle",
+      science_center: "Centre scient.",
+      rookery: "Volière",
+      storage_vault: "Coffre fort",
+      wall: "Mur"
+    },
+    research: {
+      draconic_wisdom: "Sagesse draconique",
+      agriculture: "Agriculture",
+      woodcraft: "Artisanat du bois",
+      masonry: "Maçonnerie",
+      alloys: "Alliage",
+      clairvoyance: "Clairvoyance",
+      metallurgy: "Métallurgie",
+      mercantilism: "Mercantilisme",
+      rapid_deployment: "Déploiement rapide",
+      medicine: "Médecine",
+      levitation: "Lévitation",
+      outpost_blessing: "Bénédiction PE",
+      dragonry: "Dragonnerie",
+      weapons_calibration: "Calibration",
+      rationing: "Rationnement",
+    },
+    resource: {
+      food: "Nourriture",
+      lumber: "Bois",
+      metal: "Métal",
+      stone: "Pierre",
+      blue_energy: "Énergie bleue",
+      gold: "Or",
+      soul: "Âme",
+      ruby: "Ruby",
+      population: "Population",
+      talisman: "Talisman",
+      elixir: "Elixir",
+      fangtooth: "Respirateur",
+      glowing_mandrake: "Mandragore"
+    },
+    troop: {
+      great_dragon: "Grand dragon",
+      water_dragon: "Dragon aquatique",
+      stone_dragon: "Dragon de pierre",
+      porter: "Porteur",
+      conscript: "Conscrit",
+      spy: "Espion",
+      hallberdsman: "Hallebardier",
+      minotaur: "Minotaure",
+      longbow_man: "Archer",
+      swift_strike_dragon: "Dragon volant",
+      armored_transport: "Dirigeable blindé",
+      battle_dragon: "Dragon de combat",
+      giant: "Géant",
+      fire_mirrors: "Miroir de feu",
+      pack_dragon: "Dragon de transport",
+      fangtooth: "Fangtooth",
+      granite_ogre: "Ogre de granite"
+    },
+    march: {
+     auto_farming: "Auto farm", 
+    },
+    item_category: {
+      acceleration: "Accélération",
+      chest: "Coffre",
+      general: "Général",
+      misc: "Misc",
+      resources: "Ressources",
+    },
+    quest_category: {
+      resources: "Ressources",
+      troops: "Troupes",
+      city: "Ville",
+      conquest: "Conquêtes",
+      defense: "Défense",
+      great_dragon: "Grand dragon",
+      military: "Militaire",
+      other: "Autre",
+      population: "Population",
+      science_and_research: "Centre de recherches",
+      infrastructure: "Infrastructure"
+    },
+    item: {
+      blink: "Blink (1min)",
+      hop: "Hop (5min)",
+      skip: "Skip (15min)",
+      jump: "Jump (1hr)",
+      leap: "Leap (2,5hr)",
+      bounce: "Bounce (8hr)",
+      bore: "Bore (15hr)",
+      bolt: "Bolt (1jr)",
+      blast: "Blast (2,5jr)",
+      blitz: "Blitz (4jr)",
+      charted_warp_device: "Téléporteur Premium",
+      crimson_bull: "Taureau furieu",
+      dragon_heart: "Coeur de dragon",
+      glowing_shields: "Boucliers lumineux",
+      harvest_nano_1d: "Récolte nano 1jr",
+      metals_nano_1d: "Métal nano 1jr",
+      stone_nano_1d: "Pierre nano 1jr",
+      locust_curse_1d: "Maléd. nourriture 1jr",
+      frog_curse_1d: "Maléd. pierre 1jr",
+      worm_curse_1d: "Maléd bois 1jr",
+      mass_nullifier: "Destructeur",
+      purple_bones: "Os violet",
+      resource_chest_250k: "Coffre ressource 250k",
+      resource_chest_500k: "Coffre ressource 500k",
+      testronius_dust: "Testro 15%",
+      testronius_powder: "Testro 30%",
+      testronius_deluxe: "Testro 50%",
+      testronius_infusion: "Testro 99%",
+      trance_march: "Transe 25%",
+      forced_march: "Marche forcée 50%",
+      trance_march_elixir: "Transe 50% & 24h",
+      truce: "Paix",
+      fortuna_ticket: "Ticket fortuna",
+      fortuna_medallion: "Médaillon fortuna",
+      random_resource_pack_5m: "Aléa pack 5M ress.",
+      nano_chest: "Coffre nano",
+      cursed_chest: "Coffre malédiction",
+      combat_buffs_chest: "Coffre de combat",
+      chronos_satchel: "Sacoche Chronos",
+      cease_fire_treaty: "Cessez le feu",
+      great_dragon_armor_helmet: "Casque du dragon",
+      abyssal_demon_chest: "Coffre abyssal du démon",
+      infernal_blood_chest: "Coffre infernal du sang",
+      void_demon_chest: "Coffre démonniaque",
+      cursed_ember_chest: "Coffre de braise maudit",
+      random_troop_pack_100k_250k: "Pack aléa. 100k/200k",
+      random_troop_pack_1k_5k: "Pack aléa. 1k/5k",
+      random_troop_pack_5k_10k: "Pack aléa. 5k/10k",
+      elixir_pack_150k: "Pack elixir 150k",
+      completion_grant_portfolio: "Portefeuille de permis",
+      nomadic_recruits: "Nomades 20k",
+      nomadic_recruits_2: "Nomades 40k",
+      glowing_mandrake_pack_10k: "Pack mandragore 10k",
+      elixir_pack_250k: "Pack elixir 250k",
+      all_resources_pack_5m: "Pack toutes ressrouces 5M",
+      completion_grant: "Permis de construire"
+    }
+  }
+};
+
+
+
+/* ===== MODULE: src/sidepanel/state.js ===== */
+
 const UI_STATE = {
   showResources : {
     food: true,
@@ -14,14 +192,8 @@ const UI_STATE = {
     fangtooth: false,
     glowing_mandrake: false
   },
-  cities: [
-    { id: 'city' },
-    { id: 'water_outpost' },
-    { id: 'stone_outpost' }
-  ],
   activeMainTab: 'joueur',
   activePlayerSubTab: 'general',
-  activeAllianceSubTab: 'general',
   activeItemCategory: 'all',
   activeBuildingSettlement: "all",
   showTopHeaderPanel: false,
@@ -30,8 +202,7 @@ const UI_STATE = {
   showCalciumTab: true,
   snapshot: null,
   countdownInterval: null,
-  port: null,
-  handledFinishedActions: new Set()
+  port: null
 };
 
 function getMainTabs() {
@@ -50,6 +221,10 @@ function syncStaticUiVisibility() {
     headerEl.classList.toggle('calcium-hidden', !UI_STATE.showTopHeaderPanel);
   }
 }
+
+
+
+/* ===== MODULE: src/sidepanel/core.js ===== */
 
 function escapeHtml(value) {
   return String(value)
@@ -225,7 +400,7 @@ function formatCoordinates(coords) {
 
 function getLabelTrans(str, type = 'general', lang = 'fr') {
   if (!str || !type) return str ?? '';
-  const dict = window.CalciumI18n?.[lang]?.[type] ?? {};
+  const dict = CalciumI18n?.[lang]?.[type] ?? {};
   return dict[str] ?? str;
 }
 
@@ -491,6 +666,58 @@ function refreshSelectedDataView() {
   `;
 }
 
+async function callApi(path, { method = 'GET', json, headers } = {}) {
+  return requestBridge({
+    type: 'CALCIUM_API_REQUEST',
+    path,
+    method,
+    json,
+    headers
+  });
+}
+
+
+
+/* ===== MODULE: src/sidepanel/player-tab.js ===== */
+
+async function requestCalciumApi(path, {
+  method = 'GET',
+  json = undefined,
+  headers = undefined
+} = {}) {
+  return chrome.runtime.sendMessage({
+    type: 'CALCIUM_API_REQUEST',
+    path,
+    method,
+    json,
+    headers
+  });
+}
+
+async function usePlayerItem(itemUuid, quantity = 1) {
+  const calcium = UI_STATE.snapshot?.calcium || null;
+  const playerUuid =
+    calcium?.guid?.player ||
+    calcium?.Data?.Player?.uuid ||
+    null;
+
+  if (!playerUuid) {
+    return { ok: false, error: 'NO_PLAYER_UUID' };
+  }
+
+  if (!itemUuid) {
+    return { ok: false, error: 'NO_ITEM_UUID' };
+  }
+
+  return requestCalciumApi(
+    `/api/players/${playerUuid}/items/${itemUuid}/use`,
+    {
+      method: 'POST',
+      json: { count: quantity }
+    }
+  );
+}
+
 function buildPlayerHero() {
   return `
     <div class="calcium-player-subtabs">
@@ -604,40 +831,163 @@ function buildItemBloc(calcium) {
   const visibleItems = getVisiblePlayerItems(calcium);
   const activeCategory = UI_STATE.activeItemCategory || 'all';
 
-  const filteredItems = visibleItems.filter(({ category }) => {
-    return activeCategory === 'all' || category === activeCategory;
-  });
+  const filtered = visibleItems.filter(i =>
+    activeCategory === 'all' || i.category === activeCategory
+  );
 
-  const itemsHtml = filteredItems.length
-    ? filteredItems
-        .slice()
-        .sort((a, b) => String(a?.itemDef?.id || '').localeCompare(String(b?.itemDef?.id || '')))
-        .map(({ itemDef, playerItem }) => {
-          const itemLabel = escapeHtml(
-            getLabelTrans(itemDef?.id, 'item') || formatValue(itemDef?.id, '—')
-          );
-          const itemCount = escapeHtml(
-            formatCompactNumber(playerItem?.count ?? 0)
-          );
+  const itemsHtml = filtered.length
+    ? filtered.map(({ itemDef, playerItem }) => {
 
-          return `
-            <div class="calcium-item-card">
-              <span class="calcium-item-label">${itemLabel}</span>
+        const itemLabel = escapeHtml(
+          getLabelTrans(itemDef?.id, 'item') || itemDef?.id
+        );
+
+        const itemCount = escapeHtml(
+          formatCompactNumber(playerItem?.count ?? 0)
+        );
+
+        const itemUuid = escapeHtml(playerItem?.uuid || '');
+        const maxQty = playerItem?.count ?? 0;
+
+        const def = calcium?.Data?.Item?.find(i => i.id === itemDef.id);
+
+        const canUse =
+          !!playerItem?.uuid &&
+          def?.usable &&
+          !def?.targetable;
+
+        return `
+          <div class="calcium-item-card" style="position: relative;" data-item-uuid="${itemUuid}">
+            <div class="calcium-item-line">
+              <span class="calcium-item-label" title="${itemLabel}">
+                ${itemLabel}
+              </span>
               <span class="calcium-item-count">${itemCount}</span>
+              ${canUse ? `
+                <button class="calcium-item-trigger">⚡</button>
+              ` : ''}
             </div>
-          `;
-        }).join('')
-    : `<div class="calcium-resource-empty">Aucun item dans cette catégorie</div>`;
+
+            ${canUse ? `
+              <div class="calcium-item-panel">
+                <button class="qty-btn" data-action="dec">-</button>
+                <input class="calcium-item-qty" type="number" min="1" max="${maxQty}" value="1" />
+                <button class="qty-btn" data-action="inc">+</button>
+                <button class="qty-max">MAX</button>
+                <button class="calcium-btn calcium-btn-primary calcium-use-item-btn" data-item-uuid="${itemUuid}">
+                  OK
+                </button>
+              </div>
+            ` : ''}
+
+          </div>
+        `;
+      }).join('')
+    : `<div class="calcium-resource-empty">Aucun item</div>`;
 
   return `
     <div class="calcium-player-section">
       <div class="calcium-player-subtitle">Items</div>
       ${buildItemCategoryTabs(calcium)}
-      <div class="calcium-item-grid">
+      <div class="calcium-item-grid" data-item-grid="true">
         ${itemsHtml}
       </div>
     </div>
   `;
+}
+
+function bindItemActions(scope = document) {
+  const grid = scope.querySelector('[data-item-grid="true"]');
+  if (!grid || grid.dataset.bound === 'true') return;
+
+  grid.dataset.bound = 'true';
+
+  // toggle
+  grid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.calcium-item-trigger');
+    if (!btn) return;
+
+    btn.classList.toggle('active');
+    const card = btn.closest('.calcium-item-card');
+
+    grid.querySelectorAll('.open').forEach(c => c !== card && c.classList.remove('open'));
+
+    card.classList.toggle('open');
+  });
+
+  // close when click outside
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.calcium-item-card')) {
+      document.querySelectorAll('.calcium-item-card.open')
+        .forEach(c => c.classList.remove('open'));
+    }
+  });
+
+  // + / -
+  grid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.qty-btn');
+    if (!btn) return;
+
+    const card = btn.closest('.calcium-item-card');
+    const input = card.querySelector('.calcium-item-qty');
+
+    let v = Number(input.value);
+    const max = Number(input.max);
+
+    v += btn.dataset.action === 'inc' ? 1 : -1;
+
+    if (v < 1) v = 1;
+    if (v > max) v = max;
+
+    input.value = v;
+  });
+
+  // max
+  grid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.qty-max');
+    if (!btn) return;
+
+    const input = btn.closest('.calcium-item-card').querySelector('.calcium-item-qty');
+    input.value = input.max;
+  });
+
+  // input securisé
+  grid.addEventListener('input', (e) => {
+    const input = e.target.closest('.calcium-item-qty');
+    if (!input) return;
+
+    let v = Number(input.value);
+    const max = Number(input.max);
+
+    if (!v || v < 1) v = 1;
+    if (v > max) v = max;
+
+    input.value = v;
+  });
+
+  // use
+  grid.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.calcium-use-item-btn');
+    if (!btn) return;
+
+    const card = btn.closest('.calcium-item-card');
+    const input = card.querySelector('.calcium-item-qty');
+
+    const qty = Number(input.value || 1);
+
+    btn.disabled = true;
+    btn.textContent = '...';
+
+    try {
+      await usePlayerItem(btn.dataset.itemUuid, qty);
+      card.classList.remove('open'); // fermeture auto
+      btn.textContent = 'OK';
+    } catch {
+      btn.textContent = 'Err';
+    } finally {
+      btn.disabled = false;
+    }
+  });
 }
 
 function buildResourcesBlock(calcium) {
@@ -735,7 +1085,7 @@ function buildActionsOverview(calcium) {
         .find((b) => b.uuid === meta.building_uuid);
       const label = building?.label || meta.building_uuid || 'Bâtiment inconnu';
       const levels = building ? ` ${building.level} → ${building.level + 1}` : '';
-      return `${escapeHtml(label)}${escapeHtml(levels)}`;
+      return `${escapeHtml(getLabelTrans(label, 'buildings'))}${escapeHtml(levels)}`;
     }
 
     if (entity.includes('Battle')) {
@@ -806,7 +1156,7 @@ function renderPlayerGeneralTab(calcium) {
     <div class="calcium-player-hero">
       <div class="calcium-player-title-realm">Royaume : ${realmName}</div>
       <div class="calcium-player-title-sub">
-        ${username} - ${getLabelTrans('level')} ${level} - ${getLabelTrans('power')} ${power}
+        ${username} - ${getLabelTrans('level')} ${level} - ${getLabelTrans('power')} ${formatCompactNumber(power)}
       </div>
     </div>
 
@@ -894,52 +1244,6 @@ function renderPlayerTroopsTab(calcium) {
       </div>
     </div>
   `;
-}
-
-function buildBuildingsRows() {
-  const groupedBuildings = UI_STATE.snapshot?.derived?.groupedBuildings || [];
-
-  if (!groupedBuildings.length) {
-    return `
-      <tr>
-        <td colspan="3" class="calcium-cell-empty">Aucun bâtiment</td>
-      </tr>
-    `;
-  }
-
-  return groupedBuildings.map(group => {
-    const buildingLabel = group.definitionId || 'unknown';
-    const displayLabel = UI_STATE.snapshot?.calcium?.Data?.Player.building?.find(
-      b => b.definitionId === group.definitionId
-    )?.label || buildingLabel;
-
-    const levelRange = group.minLevel === group.maxLevel
-      ? `Niv. ${group.minLevel}`
-      : `Niv. ${group.minLevel} à ${group.maxLevel}`;
-
-    return `
-      <tr>
-        <td>
-          <div class="calcium-building-cell">
-            <div>
-              ${group.hasAction
-                ? `<span class="calcium-building-indicator" title="Au moins un bâtiment de ce type est en construction"></span>`
-                : `<span class="calcium-building-indicator is-idle"></span>`
-              }
-              <span class="calcium-building-name">${escapeHtml(displayLabel)}</span>
-              <span class="calcium-building-meta">${levelRange}</span>
-            </div>
-          </div>
-        </td>
-        <td>
-          ${group.hasAction
-            ? `<span class="calcium-building-group-status is-active">En construction</span>`
-            : `<span class="calcium-building-group-status">Stable</span>`
-          }
-        </td>
-      </tr>
-    `;
-  }).join('');
 }
 
 function buildSearchRows() {
@@ -1044,7 +1348,7 @@ function buildBuildingActionsSummary() {
         const building = (UI_STATE.snapshot?.calcium?.Data?.Player?.building || []).find(
           b => b.uuid === String(buildingUuid)
         );
-        const buildingName = building?.label || 'Bâtiment inconnu';
+        const buildingName = getLabelTrans(building?.label, 'buildings') || 'Bâtiment inconnu';
         const remaining = formatDuration(getRemainingSeconds(action));
         const currentLevel = Number(building?.level ?? 0);
 
@@ -1083,11 +1387,11 @@ function getBuildingsBySettlement() {
   const settlements = getPlayerSettlements();
 
   const settlementsByApiId = Object.fromEntries(
-    settlements.map(settlement => [settlement?.["@id"], settlement])
+    settlements.map(settlement => [settlement?.['@id'], settlement])
   );
 
   const grouped = buildings.reduce((acc, building) => {
-    const settlementApiId = building?.settlement || "__unknown__";
+    const settlementApiId = building?.settlement || '__unknown__';
     if (!acc[settlementApiId]) {
       acc[settlementApiId] = [];
     }
@@ -1101,7 +1405,7 @@ function getBuildingsBySettlement() {
     return {
       settlementApiId,
       settlement,
-      label: settlement?.name || "Inconnue",
+      label: settlement?.name || 'Inconnue',
       buildings: settlementBuildings
     };
   }).sort((a, b) => String(a.label).localeCompare(String(b.label)));
@@ -1112,7 +1416,7 @@ function ensureValidActiveBuildingSettlement() {
   const validIds = groups.map(group => group.settlementApiId);
 
   if (!validIds.includes(UI_STATE.activeBuildingSettlement)) {
-    UI_STATE.activeBuildingSettlement = validIds[0] || "all";
+    UI_STATE.activeBuildingSettlement = validIds[0] || 'all';
   }
 }
 
@@ -1124,19 +1428,19 @@ function setActiveBuildingSettlement(settlementApiId) {
 function buildBuildingSettlementTabs() {
   const groups = getBuildingsBySettlement();
 
-  if (!groups.length) return "";
+  if (!groups.length) return '';
 
   return `
     <div class="calcium-player-subtabs calcium-building-settlement-tabs">
       ${groups.map(group => `
         <button
-          class="calcium-player-subtab calcium-building-settlement-tab ${UI_STATE.activeBuildingSettlement === group.settlementApiId ? "active" : ""}"
+          class="calcium-player-subtab calcium-building-settlement-tab ${UI_STATE.activeBuildingSettlement === group.settlementApiId ? 'active' : ''}"
           data-building-settlement="${escapeHtml(group.settlementApiId)}"
           type="button"
         >
           ${escapeHtml(group.label)}
         </button>
-      `).join("")}
+      `).join('')}
     </div>
   `;
 }
@@ -1160,13 +1464,13 @@ function buildGroupedBuildingsRowsBySettlement() {
   }
 
   const groupedByDefinition = buildings.reduce((acc, building) => {
-    const key = building?.definitionId || "unknown";
+    const key = building?.definitionId || 'unknown';
     const level = Number(building?.level || 0);
 
     if (!acc[key]) {
       acc[key] = {
         definitionId: key,
-        label: building?.label || key,
+        label: getLabelTrans(building?.label, 'buildings') || getLabelTrans(key, 'buildings'),
         count: 0,
         minLevel: level,
         maxLevel: level,
@@ -1222,7 +1526,7 @@ function buildGroupedBuildingsRowsBySettlement() {
         </tr>
       `;
     })
-    .join("");
+    .join('');
 
   return rows;
 }
@@ -1347,12 +1651,6 @@ function getPlayerQuests() {
 function getQuestLabel(definitionId, definition) {
   if (definition?.name) return String(definition.name);
   return String(definitionId || 'Quête inconnue');
-}
-
-function formatQuestCategoryLabel(category) {
-  const value = String(category || 'other');
-  const labels = getLabelTrans(category, 'quest_category');
-  return labels;
 }
 
 function getQuestDisplayStatus(quest) {
@@ -1512,7 +1810,7 @@ function getGroupedPlayerQuests() {
 
       return {
         category,
-        label: formatQuestCategoryLabel(category),
+        label: getLabelTrans(category, 'quest_category'),
         items: sortedItems,
         total: sortedItems.length,
         claimable: sortedItems.filter(q => q.status === 'completed' && q.claimed === false).length,
@@ -1639,12 +1937,18 @@ function renderPlayerPanel() {
     });
   });
 
-  panel.querySelectorAll("[data-building-settlement]").forEach((button) => {
-    button.addEventListener("click", () => {
+  panel.querySelectorAll('[data-building-settlement]').forEach((button) => {
+    button.addEventListener('click', () => {
       setActiveBuildingSettlement(button.dataset.buildingSettlement);
     });
   });
+
+  bindItemActions(panel);
 }
+
+
+
+/* ===== MODULE: src/sidepanel/alliance-tab.js ===== */
 
 function renderAllianceOverview(alliance) {
   const name = escapeHtml(formatValue(alliance?.name));
@@ -1823,8 +2127,6 @@ function renderAllianceMembersTable(alliance) {
     const pvePower = escapeHtml(formatCompactNumber(player?.pvePower ?? 0));
     const pvpPower = escapeHtml(formatCompactNumber(player?.pvpPower ?? 0));
     const joinedAt = escapeHtml(formatValue(member?.joinedAt));
-    const playerUuid = escapeHtml(formatValue(player?.uuid));
-    const memberUuid = escapeHtml(formatValue(member?.uuid));
 
     return `
       <tr class="calcium-alliance-row">
@@ -1880,6 +2182,10 @@ function renderAllianceMembersTable(alliance) {
     </div>
   `;
 }
+
+
+
+/* ===== MODULE: src/sidepanel/calcium-tab.js ===== */
 
 function renderCalciumPanel() {
   const panel = document.getElementById('calcium-calcium-panel');
@@ -2006,6 +2312,10 @@ function renderAlliancePanel() {
   bindAllianceTooltips(panel);
 }
 
+
+
+/* ===== MODULE: src/sidepanel/app.js ===== */
+
 function refreshCountdownElements() {
   const elements = document.querySelectorAll('[data-end-at][data-finished]');
 
@@ -2113,3 +2423,12 @@ if (document.readyState === 'loading') {
 } else {
   init();
 }
+
+
+
+/* ===== MODULE: src/sidepanel/index.js ===== */
+
+
+
+
+})();

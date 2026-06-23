@@ -17,6 +17,7 @@ const moduleOrder = [
 
   'src/sidepanel/alliance-tab.js',
   'src/sidepanel/calcium-tab.js',
+  'src/sidepanel/configuration-tab.js',
   'src/sidepanel/app.js',
   'src/sidepanel/index.js'
 ];

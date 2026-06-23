@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Calcium",
-  "version": "2026.622",
-  "description": "Outil pour suivre son avancée dans RoA",
+  "version": "2026.624",
+  "description": "Outil pour suivre son avancée dans RoA - RiseOfAtlantis",
   "permissions": [
     "sidePanel",
-    "tabs"
+    "tabs",
+    "storage"
   ],
   "host_permissions": [
     "https://*.riseofatlantis.fr/"

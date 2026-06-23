@@ -1,4 +1,8 @@
-import { UI_STATE, syncStaticUiVisibility } from './state.js';
+import {
+  UI_STATE,
+  loadPersistentConfiguration,
+  syncStaticUiVisibility
+} from './state.js';
 import {
   formatDuration, getRemainingSeconds, connectLiveUpdates, loadState, setFilter,
   setSearchText, refreshToken, renderMainTabs, setActiveMainTab, setActivePlayerSubTab,
@@ -99,20 +103,23 @@ function bindStaticEvents() {
   
 }
 
-function init() {
+async function init() {
+  await loadPersistentConfiguration();
+
   syncStaticUiVisibility();
   bindStaticEvents();
   renderMainTabs();
   connectLiveUpdates();
+
   setActiveMainTab(UI_STATE.activeMainTab || 'joueur');
   setActivePlayerSubTab(UI_STATE.activePlayerSubTab || 'general');
+
   loadState();
 
   if (!window.__calciumTooltipsInit) {
     initGlobalTooltips();
     window.__calciumTooltipsInit = true;
   }
-
 }
 
 if (document.readyState === 'loading') {

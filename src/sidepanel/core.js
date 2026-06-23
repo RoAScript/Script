@@ -1,7 +1,12 @@
-import { UI_STATE, getMainTabs } from './state.js';
+import {
+  UI_STATE,
+  getMainTabs,
+  syncStaticUiVisibility
+} from './state.js';
 import { CalciumI18n } from './i18n.js';
 import { renderPlayerPanel } from './player-tab.js';
 import { renderAlliancePanel, renderCalciumPanel } from './calcium-tab.js';
+import { renderConfigurationPanel, bindConfigurationEvents } from './configuration-tab.js';
 import { renderAll } from './app.js';
 
 function escapeHtml(value) {
@@ -270,9 +275,11 @@ function renderMainTabs() {
     <button
       class="calcium-main-tab ${UI_STATE.activeMainTab === tab.id ? 'active' : ''}"
       type="button"
-      data-main-tab="${tab.id}"
+      data-main-tab="${escapeHtml(tab.id)}"
+      title="${escapeHtml(tab.title || tab.label)}"
+      aria-label="${escapeHtml(tab.title || tab.label)}"
     >
-      ${tab.label}
+      ${escapeHtml(tab.label)}
     </button>
   `).join('');
 
@@ -308,7 +315,27 @@ function setActiveMainTab(tabId) {
     renderAlliancePanel();
   } else if (UI_STATE.activeMainTab === 'calcium') {
     renderCalciumPanel();
-  }
+  } else if (UI_STATE.activeMainTab === 'configuration') {
+      const panel = document.getElementById('calcium-configuration-panel');
+
+      renderConfigurationPanel();
+
+      bindConfigurationEvents(panel, () => {
+        syncStaticUiVisibility();
+        renderMainTabs();
+        renderConfigurationPanel();
+
+        const refreshedPanel = document.getElementById('calcium-configuration-panel');
+        if (refreshedPanel) {
+          refreshedPanel.dataset.configurationBound = 'false';
+          bindConfigurationEvents(refreshedPanel, () => {
+            syncStaticUiVisibility();
+            renderMainTabs();
+            renderConfigurationPanel();
+          });
+        }
+      });
+    }
 }
 
 function setActivePlayerSubTab(tabId) {

@@ -162,13 +162,26 @@ function buildQuestInfoButton(quest) {
   `;
 }
 
+function isClaimedQuest(quest) {
+  return quest?.status === 'completed' && quest?.claimed === true;
+}
+
 function getGroupedPlayerQuests() {
-  const quests = getEnrichedPlayerQuests();
+  const showQuestClaimed = UI_STATE.showQuestClaimed !== false;
+
+  const quests = getEnrichedPlayerQuests()
+    .filter((quest) => {
+      if (showQuestClaimed) return true;
+      return !isClaimedQuest(quest);
+    });
+
   const groups = new Map();
 
   for (const quest of quests) {
     const key = quest.category || 'other';
+
     if (!groups.has(key)) groups.set(key, []);
+
     groups.get(key).push(quest);
   }
 
@@ -193,6 +206,7 @@ function getGroupedPlayerQuests() {
         inProgress: sortedItems.filter(q => q.status === 'in_progress').length
       };
     })
+    .filter(group => group.total > 0)
     .sort((a, b) => {
       const score = (group) => {
         if (group.claimable > 0) return 0;

@@ -1546,6 +1546,97 @@ code {
   cursor: wait;
 }
 
+/* =========================================================
+   CONFIGURATION
+   ========================================================= */
+
+.calcium-config-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.calcium-config-section {
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.calcium-config-section + .calcium-config-section {
+  margin-top: 8px;
+}
+
+.calcium-config-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+}
+
+.calcium-config-row:last-child {
+  border-bottom: none;
+}
+
+.calcium-config-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.calcium-config-label {
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.calcium-config-description {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.25;
+}
+
+.calcium-config-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.calcium-config-resource-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.calcium-config-resource {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.calcium-config-resource:hover {
+  background: var(--surface-3);
+}
+
+.calcium-config-actions {
+  margin-top: 8px;
+}
 
 ::-webkit-scrollbar {
   width: 7px;

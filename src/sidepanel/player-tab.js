@@ -27,7 +27,8 @@ import {
 } from './player-tab-research.js';
 
 import {
-  renderPlayerQuestsTab
+  renderPlayerQuestsTab,
+  bindQuestsTabEvents
 } from './player-tab-quests.js';
 
 function renderPlayerPanel() {
@@ -80,9 +81,12 @@ function renderPlayerPanel() {
     bindGeneralTabEvents(panel, renderPlayerPanel);
   } else if (UI_STATE.activePlayerSubTab === 'batiments') {
     bindBuildingsTabEvents(panel, renderPlayerPanel);
-  }  else if (UI_STATE.activePlayerSubTab === 'recherche') {
+  } else if (UI_STATE.activePlayerSubTab === 'recherche') {
     bindResearchTabEvents(panel, renderPlayerPanel);
+  } else if (UI_STATE.activePlayerSubTab === 'quests') {
+    bindQuestsTabEvents(panel, renderPlayerPanel);
   }
+
 
 }
 

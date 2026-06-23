@@ -91,6 +91,11 @@ export const CalciumI18n = {
       misc: "Misc",
       resources: "Ressources",
     },
+    quest: {
+      claimable: "À réclamer",
+      claimed: "Réclamée",
+      progress: "En cours"
+    },
     quest_category: {
       resources: "Ressources",
       troops: "Troupes",

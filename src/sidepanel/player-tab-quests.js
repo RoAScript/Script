@@ -3,55 +3,57 @@ import {
   escapeHtml,
   formatValue,
   formatCompactNumber,
-  getLabelTrans
+  getLabelTrans,
+  requestCalciumApi
 } from './player-tab-core.js';
+
+let rerenderQuestsPlayerPanel = null;
 
 function getQuestDefinitions() {
   const calcium = UI_STATE.snapshot?.calcium?.Data || {};
-  return (
-    calcium.QuestDefinitions ||
-    calcium.QuestsDefinitions ||
-    calcium.QuestDefinition ||
-    calcium.Quest ||
-    []
-  );
+  return (calcium.Quest || []);
 }
-
 
 function getPlayerQuests() {
   const calcium = UI_STATE.snapshot?.calcium?.Data || {};
   const player = calcium.Player || {};
-  return (
-    player.quests ||
-    player.Quests ||
-    calcium.PlayerQuests ||
-    calcium.Quests ||
-    []
-  );
+  return (player.quests || []);
 }
-
 
 function getQuestLabel(definitionId, definition) {
   if (definition?.name) return String(definition.name);
   return String(definitionId || 'Quête inconnue');
 }
 
-
 function getQuestDisplayStatus(quest) {
   if (quest?.status === 'completed' && quest?.claimed === false) {
-    return { label: 'À réclamer', tone: 'claimable' };
+    return {
+      label: getLabelTrans('claimable', 'quest'),
+      tone: 'claimable',
+      claimable: true
+    };
   }
-  if (quest?.status === 'completed' && quest?.claimed === true) {
-    return { label: 'Réclamée', tone: 'claimed' };
-  }
-  return { label: 'En cours', tone: 'progress' };
-}
 
+  if (quest?.status === 'completed' && quest?.claimed === true) {
+    return {
+      label: getLabelTrans('claimed', 'quest'),
+      tone: 'claimed',
+      claimable: false
+    };
+  }
+
+  return {
+    label: getLabelTrans('progress', 'quest'),
+    tone: 'progress',
+    claimable: false
+  };
+}
 
 function formatQuestReward(reward) {
   if (!reward || typeof reward !== 'object') return '-';
 
   const parts = [];
+
   if (reward.resources && typeof reward.resources === 'object') {
     const resourceText = Object.entries(reward.resources)
       .map(([key, value]) => `${key}: ${formatCompactNumber(value)}`)
@@ -69,11 +71,11 @@ function formatQuestReward(reward) {
   return parts.join(' • ') || '-';
 }
 
-
 function formatQuestRequirements(requirements) {
   if (!requirements || typeof requirements !== 'object') return '-';
 
   const parts = [];
+
   if (requirements.buildings && typeof requirements.buildings === 'object') {
     const buildingsText = Object.entries(requirements.buildings)
       .map(([key, value]) => `${key} ${value}`)
@@ -91,10 +93,10 @@ function formatQuestRequirements(requirements) {
   return parts.join(' • ') || '-';
 }
 
-
 function getEnrichedPlayerQuests() {
   const definitions = getQuestDefinitions();
   const playerQuests = getPlayerQuests();
+
   const definitionById = new Map(
     definitions.map((def) => [String(def?.id || ''), def])
   );
@@ -117,11 +119,11 @@ function getEnrichedPlayerQuests() {
       rewardText: formatQuestReward(currentReward),
       requirementsText: formatQuestRequirements(nextRequirements),
       statusLabel: displayStatus.label,
-      statusTone: displayStatus.tone
+      statusTone: displayStatus.tone,
+      claimable: displayStatus.claimable
     };
   });
 }
-
 
 function buildQuestInfoButton(quest) {
   const lines = [];
@@ -160,7 +162,6 @@ function buildQuestInfoButton(quest) {
   `;
 }
 
-
 function getGroupedPlayerQuests() {
   const quests = getEnrichedPlayerQuests();
   const groups = new Map();
@@ -179,6 +180,7 @@ function getGroupedPlayerQuests() {
           if (quest?.status === 'in_progress') return 1;
           return 2;
         };
+
         return score(a) - score(b) || String(a.label || '').localeCompare(String(b.label || ''));
       });
 
@@ -197,24 +199,49 @@ function getGroupedPlayerQuests() {
         if (group.inProgress > 0) return 1;
         return 2;
       };
+
       return score(a) - score(b) || a.label.localeCompare(b.label);
     });
 }
 
+function claimQuest(questUuid) {
+  const calcium = UI_STATE.snapshot?.calcium || null;
+  const playerUuid =
+    calcium?.guid?.player ||
+    calcium?.Data?.Player?.uuid ||
+    null;
 
-function renderPlayerQuestsTab() {
-  const groups = getGroupedPlayerQuests();
+  if (!playerUuid) {
+    return Promise.resolve({ ok: false, error: 'NO_PLAYER_UUID' });
+  }
 
-  return `
-    <div class="calcium-player-section">
-      <div class="calcium-player-subtitle">Quêtes par type</div>
-      <div class="calcium-quest-groups">
-        ${buildQuestGroupsAccordion(groups)}
-      </div>
-    </div>
-  `;
+  if (!questUuid) {
+    return Promise.resolve({ ok: false, error: 'NO_QUEST_UUID' });
+  }
+
+  return requestCalciumApi(
+    `/api/players/${playerUuid}/quests/${questUuid}/claim`,
+    {
+      method: 'POST',
+      json: {},
+      headers: {
+        'X-Calcium-No-Hp': 'true'
+      }
+    }
+  );
 }
 
+function applyOptimisticQuestClaim(questUuid) {
+  const quests = UI_STATE.snapshot?.calcium?.Data?.Player?.quests;
+  if (!Array.isArray(quests)) return;
+
+  const quest = quests.find((entry) => String(entry?.uuid || '') === String(questUuid));
+  if (!quest) return;
+
+  quest.claimed = true;
+  quest.status = 'completed';
+  quest.claimedAt = new Date().toISOString();
+}
 
 function buildQuestGroupsAccordion(groups) {
   if (!groups.length) {
@@ -251,21 +278,94 @@ function buildQuestGroupsAccordion(groups) {
   `).join('');
 }
 
-
 function buildQuestGroupRows(items) {
   return items.map((quest) => `
     <tr>
       <td>${escapeHtml(quest.label || quest.definitionId || 'Quête inconnue')}</td>
       <td>${escapeHtml(String(quest.level ?? 0))}</td>
       <td>
-        <span class="calcium-badge calcium-badge-${escapeHtml(quest.statusTone)}">
-          ${escapeHtml(quest.statusLabel)}
-        </span>
+        ${
+          quest.claimable
+            ? `
+              <button
+                type="button"
+                class="calcium-badge calcium-badge-${escapeHtml(quest.statusTone)} calcium-quest-claim-btn"
+                data-quest-uuid="${escapeHtml(quest.uuid || '')}"
+                title="Cliquer pour réclamer"
+              >
+                ${escapeHtml(quest.statusLabel)}
+              </button>
+            `
+            : `
+              <span class="calcium-badge calcium-badge-${escapeHtml(quest.statusTone)}">
+                ${escapeHtml(quest.statusLabel)}
+              </span>
+            `
+        }
       </td>
       <td>${buildQuestInfoButton(quest)}</td>
     </tr>
   `).join('');
 }
 
+function renderPlayerQuestsTab() {
+  const groups = getGroupedPlayerQuests();
 
-export { renderPlayerQuestsTab };
+  return `
+    <div class="calcium-player-section">
+      <div class="calcium-player-subtitle">Quêtes par type</div>
+      <div class="calcium-quest-groups">
+        ${buildQuestGroupsAccordion(groups)}
+      </div>
+    </div>
+  `;
+}
+
+function bindQuestClaimButtons(scope = document) {
+  if (scope.dataset.questClaimBound === 'true') return;
+  scope.dataset.questClaimBound = 'true';
+
+  scope.addEventListener('click', async (event) => {
+    const btn = event.target.closest('.calcium-quest-claim-btn');
+    if (!btn) return;
+
+    const questUuid = btn.dataset.questUuid;
+    if (!questUuid) return;
+
+    btn.disabled = true;
+    const previousText = btn.textContent;
+    btn.textContent = '...';
+
+    try {
+      const response = await claimQuest(questUuid);
+
+      if (!response?.ok) {
+        btn.textContent = 'Err';
+        return;
+      }
+
+      applyOptimisticQuestClaim(questUuid);
+      rerenderQuestsPlayerPanel?.();
+    } catch (error) {
+      console.error('[Calcium][quest-claim] KO', error);
+      btn.textContent = 'Err';
+    } finally {
+      window.setTimeout(() => {
+        if (btn.isConnected) {
+          btn.disabled = false;
+          btn.textContent = previousText;
+        }
+      }, 250);
+    }
+  });
+}
+
+function bindQuestsTabEvents(panel, renderPlayerPanel) {
+  rerenderQuestsPlayerPanel = renderPlayerPanel;
+  bindQuestClaimButtons(panel);
+}
+
+export {
+  renderPlayerQuestsTab,
+  bindQuestsTabEvents
+};

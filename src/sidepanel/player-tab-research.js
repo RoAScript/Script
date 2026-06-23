@@ -209,8 +209,6 @@ function bindResearchAccelerationButtons(scope = document) {
       }
 
       applyOptimisticInventoryConsumption(itemUuid, 1);
-      applyOptimisticActionAcceleration(actionUuid, reductionSeconds);
-
       rerenderResearchPlayerPanel?.();
     } catch (error) {
       console.error('[Calcium][research-accel] KO', error);

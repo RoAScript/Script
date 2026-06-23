@@ -117,8 +117,6 @@ function bindBuildingAccelerationButtons(scope = document) {
       }
 
       applyOptimisticInventoryConsumption(itemUuid, 1);
-      applyOptimisticActionAcceleration(actionUuid, reductionSeconds);
-
       rerenderBuildingsPlayerPanel?.();
     } catch (error) {
       console.error('[Calcium][building-accel] KO', error);

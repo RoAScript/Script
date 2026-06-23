@@ -896,18 +896,147 @@ function initAllianceData() {
       return await doRefreshToken();
     }
 
+    
     if (data?.type === 'CALCIUM_API_REQUEST') {
-      return await calciumApiFetch(data.path, {
+      const response = await calciumApiFetch(data.path, {
         method: data.method || 'GET',
         json: data.json,
         headers: data.headers || {}
       });
+
+      const questClaimMatch = String(data.path || '').match(
+        /^\/api\/players\/[^/]+\/quests\/([^/]+)\/claim$/
+      );
+
+      if (response?.ok && questClaimMatch) {
+        const questUuid = questClaimMatch[1];
+        const didMutate = applyQuestClaimToDatasets(questUuid);
+
+        if (didMutate) {
+          publishSnapshot('quest-claimed', true);
+        }
+      }
+
+      const itemUseMatch = String(data.path || '').match(
+        /^\/api\/players\/[^/]+\/items\/[^/]+\/use$/
+      );
+
+      const targetType = data?.json?.target?.type;
+      const actionUuid = data?.json?.target?.value;
+
+      if (response?.ok && itemUseMatch && targetType === 'action' && actionUuid) {
+        const itemUuid = String(data.path).split('/items/')[1]?.split('/use')[0] || null;
+
+        let reductionSeconds = 0;
+
+        if (itemUuid) {
+          const playerItems = Calcium?.Data?.Player?.items || [];
+          const itemDefs = Calcium?.Data?.Item || [];
+
+          const playerItem = playerItems.find((item) => String(item?.uuid || '') === String(itemUuid));
+          const itemDef = itemDefs.find((def) => String(def?.id || '') === String(playerItem?.definitionId || ''));
+
+          const effect = Array.isArray(itemDef?.effects)
+            ? itemDef.effects.find((entry) => entry?.name === 'action_time_reduction')
+            : null;
+
+          reductionSeconds = Number(effect?.default ?? 0);
+        }
+
+        if (reductionSeconds > 0) {
+          const didMutate = applyActionAccelerationToDatasets(actionUuid, reductionSeconds);
+
+          if (didMutate) {
+            publishSnapshot('action-accelerated', true);
+          }
+        }
+      }
+
+      return response;
     }
 
     return {
       ok: false,
       error: 'UNKNOWN_REQUEST'
     };
+  }
+
+  function applyActionAccelerationToDatasets(actionUuid, reductionSeconds) {
+    if (!actionUuid || !reductionSeconds) {
+      return false;
+    }
+
+    const playerUuid = Calcium?.guid?.player || Calcium?.Data?.Player?.uuid;
+    if (!playerUuid) {
+      return false;
+    }
+
+    const reductionMs = Number(reductionSeconds) * 1000;
+    if (!Number.isFinite(reductionMs) || reductionMs <= 0) {
+      return false;
+    }
+
+    const categoryKey = `api.players.${playerUuid}.actions`;
+    const entries = STATE.dataByCategory?.[categoryKey];
+
+    let hasMutation = false;
+
+    if (Array.isArray(entries)) {
+      entries.forEach((entry) => {
+        const members = entry?.member;
+        if (!Array.isArray(members)) return;
+
+        const action = members.find(
+          (item) => String(item?.uuid || '') === String(actionUuid)
+        );
+        if (!action) return;
+
+        const currentEndTs = new Date(action?.endAt).getTime();
+        if (Number.isNaN(currentEndTs)) return;
+
+        const nextEndTs = Math.max(Date.now(), currentEndTs - reductionMs);
+
+        action.endAt = new Date(nextEndTs).toISOString();
+        action.remainingTime = Math.max(
+          0,
+          Math.floor((nextEndTs - Date.now()) / 1000)
+        );
+
+        if (action.remainingTime <= 0) {
+          action.finished = true;
+        }
+
+        hasMutation = true;
+      });
+    }
+
+    const calciumActions = Calcium?.Data?.Actions;
+    if (Array.isArray(calciumActions)) {
+      const action = calciumActions.find(
+        (item) => String(item?.uuid || '') === String(actionUuid)
+      );
+
+      if (action) {
+        const currentEndTs = new Date(action?.endAt).getTime();
+        if (!Number.isNaN(currentEndTs)) {
+          const nextEndTs = Math.max(Date.now(), currentEndTs - reductionMs);
+
+          action.endAt = new Date(nextEndTs).toISOString();
+          action.remainingTime = Math.max(
+            0,
+            Math.floor((nextEndTs - Date.now()) / 1000)
+          );
+
+          if (action.remainingTime <= 0) {
+            action.finished = true;
+          }
+
+          hasMutation = true;
+        }
+      }
+    }
+
+    return hasMutation;
   }
 
   function findClientIdFromCapturedRequests() {
@@ -935,7 +1064,49 @@ function initAllianceData() {
     return null;
   }
 
-  function getMandatorySessionHeaders({ withJson = false } = {}) {
+  function applyQuestClaimToDatasets(questUuid) {
+    if (!questUuid) return false;
+
+    const playerUuid = Calcium?.guid?.player || Calcium?.Data?.Player?.uuid;
+    if (!playerUuid) return false;
+
+    const categoryKey = `api.players.${playerUuid}.quests`;
+    const entries = STATE.dataByCategory?.[categoryKey];
+
+    if (!Array.isArray(entries) || !entries.length) {
+      return false;
+    }
+
+    let hasMutation = false;
+
+    entries.forEach((entry) => {
+      const members = entry?.member;
+      if (!Array.isArray(members)) return;
+
+      const quest = members.find((item) => String(item?.uuid || '') === String(questUuid));
+      if (!quest) return;
+
+      quest.claimed = true;
+      quest.status = 'completed';
+      quest.claimedAt = new Date().toISOString();
+      hasMutation = true;
+    });
+
+    const playerQuests = Calcium?.Data?.Player?.quests;
+    if (Array.isArray(playerQuests)) {
+      const quest = playerQuests.find((item) => String(item?.uuid || '') === String(questUuid));
+      if (quest) {
+        quest.claimed = true;
+        quest.status = 'completed';
+        quest.claimedAt = new Date().toISOString();
+        hasMutation = true;
+      }
+    }
+
+    return hasMutation;
+  }
+
+  function getMandatorySessionHeaders({ withJson = false, includeHpHeaders = true } = {}) {
     const clientId = findClientIdFromCapturedRequests();
     const bearer = Calcium?.bearer || null;
     const realmId = Calcium?.guid?.realm || null;
@@ -964,7 +1135,7 @@ function initAllianceData() {
       headers.set('X-Realm-Id', String(realmId));
     }
 
-    if (hpItem !== null && hpItem !== undefined) {
+    if (includeHpHeaders && hpItem !== null && hpItem !== undefined) {
       headers.set('X-Roa-Hp-Item', String(hpItem));
     }
 
@@ -977,9 +1148,22 @@ function initAllianceData() {
     headers = {},
     credentials = 'include'
   } = {}) {
-    const finalHeaders = getMandatorySessionHeaders({ withJson: json !== undefined });
+    const noHpHeaders =
+      headers?.['X-Calcium-No-Hp'] === 'true' ||
+      headers?.['x-calcium-no-hp'] === 'true';
 
+    const finalHeaders = getMandatorySessionHeaders({
+      withJson: json !== undefined,
+      includeHpHeaders: !noHpHeaders
+    });
+    
     Object.entries(headers || {}).forEach(([key, value]) => {
+      const lowerKey = String(key).toLowerCase();
+
+      if (lowerKey === 'x-calcium-no-hp') {
+        return;
+      }
+
       if (value !== undefined && value !== null) {
         finalHeaders.set(key, String(value));
       }

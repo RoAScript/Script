@@ -388,6 +388,14 @@ pre {
   gap: 6px;
 }
 
+
+.calcium-building-cell > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+
 .calcium-building-name {
   font-weight: 600;
   font-size: 9px;
@@ -429,6 +437,16 @@ pre {
 
 .calcium-building-indicator.is-idle {
   background: var(--success);
+}
+
+.calcium-building-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.calcium-player-section .calcium-table td:last-child,
+.calcium-player-section .calcium-table th:last-child {
+  text-align: right;
 }
 
 .calcium-actions-list {
@@ -495,37 +513,46 @@ code {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
+  position: relative;
 }
 
 .calcium-resource-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  flex-direction: column;
   min-width: 0;
   min-height: 24px;
-  padding: 4px 6px;
+  padding: 6px 8px;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--surface-2);
+  position: relative;
+  z-index: 1;
+  gap: 0;
 }
 
 .calcium-resource-label {
-  min-width: 0;
-  color: var(--muted);
-  font-size: 9px;
-  line-height: 1.15;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 12px;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;  
+  line-height: 1;
+  font-size: 0;
+}
+
+.calcium-resource-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
 }
 
 .calcium-resource-values {
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   flex: 0 0 auto;
 }
@@ -571,6 +598,102 @@ code {
   line-height: 1.15;
   display: flex;
   align-items: center;
+}
+
+/* Header cliquable */
+.calcium-resource-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  cursor: pointer;
+}
+
+/* Icône info */
+.calcium-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #cfd6e4;
+  margin-left: 6px;
+  opacity: 0.8;
+  transition: 0.2s ease;
+  user-select: none;
+}
+
+.calcium-info-icon:hover {
+  background: rgba(255, 255, 255, 0.14);
+  opacity: 1;
+}
+
+/* Bloc accordéon caché */
+.calcium-resource-details {
+  width: 100%;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.2s ease;
+}
+
+/* Bloc ouvert */
+.calcium-resource-card.is-open .calcium-resource-details {
+  margin-top: 10px;
+  max-height: 200px;
+  opacity: 1;
+}
+
+
+/* ✅ carte ouverte en "overlay" */
+.calcium-resource-card.is-open {
+  position: absolute;
+  z-index: 10;
+
+  left: 0;
+  right: 0;
+
+  /* petit effet visuel */
+  box-shadow: 0 12px 32px rgba(0,0,0,0.6);
+  border-color: var(--primary);
+
+  background: var(--surface-2);
+}
+
+
+/* Lignes de détail */
+.calcium-details-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10px;
+  margin-top: 4px;
+  color: #cfd6e4;
+}
+
+/* Ligne finale mise en avant */
+.calcium-details-line--final {
+  color: #6dd5ed;
+  font-weight: 600;
+}
+
+/* Section recherches */
+.calcium-details-section {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+/* Titre section */
+.calcium-details-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #8ea0bd;
+  margin-bottom: 4px;
 }
 
 #ext-data-view {
@@ -1323,6 +1446,82 @@ code {
   left: 0;
   top: 100%;
   transform: none;
+}
+
+.calcium-global-tooltip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+
+  background: #111827;
+  color: #e5e7eb;
+
+  padding: 4px 6px;
+  border-radius: 6px;
+
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+
+  opacity: 0;
+  transition: opacity 0.08s ease;
+
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+/* =========================================================
+ * ACTION BÂTIMENT (structure)
+ * ========================================================= */
+
+.calcium-building-action-item {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.calcium-building-action-main {
+  width: 100%;
+}
+
+
+/* =========================================================
+ * BOUTONS D’ACCÉLÉRATION
+ * ========================================================= */
+
+.calcium-accel-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.calcium-accel-btn {
+  border: 1px solid rgba(77, 134, 255, 0.35);
+  background: rgba(77, 134, 255, 0.12);
+  color: #dbe7ff;
+
+  border-radius: 999px;
+  padding: 4px 8px;
+
+  cursor: pointer;
+  font-size: 10px;
+  line-height: 1;
+  min-height: 24px;
+
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+
+.calcium-accel-btn:hover {
+  background: rgba(77, 134, 255, 0.24);
+  border-color: rgba(77, 134, 255, 0.55);
+}
+
+.calcium-accel-btn:active {
+  transform: scale(0.95);
+}
+
+.calcium-accel-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 
 ::-webkit-scrollbar {

@@ -187,9 +187,7 @@ function renderAllianceMembersTable(alliance) {
           <div class="calcium-building-cell">
             <div class="calcium-alliance-member-main">
               <div class="calcium-alliance-member-head">
-                <span class="calcium-building-name">${username}</span>
-
-                <button
+              <button
                   type="button"
                   class="calcium-info-trigger"
                   aria-label="Informations sur ${username}"
@@ -201,6 +199,8 @@ function renderAllianceMembersTable(alliance) {
                 >
                   i
                 </button>
+
+              <span class="calcium-building-name">${username}</span>
               </div>
             </div>
           </div>

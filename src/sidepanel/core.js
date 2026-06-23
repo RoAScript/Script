@@ -34,9 +34,11 @@ function formatDuration(seconds) {
   return parts.join(' ');
 }
 
-function formatCompactNumber(value) {
+function formatCompactNumber(value, decimals = 1) {
   const num = Number(value);
   if (!Number.isFinite(num)) return '0';
+
+  const safeDecimals = Number.isInteger(decimals) && decimals >= 0 ? decimals : 1;
 
   const abs = Math.abs(num);
   const sign = num < 0 ? '-' : '';
@@ -57,10 +59,12 @@ function formatCompactNumber(value) {
     return `${num}`;
   }
 
-  const rounded = Math.round(shortValue * 10) / 10;
+  const factor = 10 ** safeDecimals;
+  const rounded = Math.round(shortValue * factor) / factor;
+
   const display = Number.isInteger(rounded)
     ? String(rounded)
-    : rounded.toFixed(1);
+    : rounded.toFixed(safeDecimals);
 
   return `${sign}${display}${suffix}`;
 }

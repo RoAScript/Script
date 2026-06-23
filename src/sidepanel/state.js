@@ -4,7 +4,7 @@ const UI_STATE = {
     lumber: true,
     metal: true,
     stone: true,
-    blue_energy: true,
+    blue_energy: false,
     gold: true,
     soulc: false,
     ruby: false,

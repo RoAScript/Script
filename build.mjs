@@ -5,7 +5,16 @@ const moduleOrder = [
   'src/sidepanel/i18n.js',
   'src/sidepanel/state.js',
   'src/sidepanel/core.js',
+
+  // Player split modules
+  'src/sidepanel/player-tab-core.js',
+  'src/sidepanel/player-tab-general.js',
+  'src/sidepanel/player-tab-troops.js',
+  'src/sidepanel/player-tab-buildings.js',
+  'src/sidepanel/player-tab-research.js',
+  'src/sidepanel/player-tab-quests.js',
   'src/sidepanel/player-tab.js',
+
   'src/sidepanel/alliance-tab.js',
   'src/sidepanel/calcium-tab.js',
   'src/sidepanel/app.js',

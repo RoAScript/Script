@@ -940,6 +940,9 @@ function initAllianceData() {
     const bearer = Calcium?.bearer || null;
     const realmId = Calcium?.guid?.realm || null;
     const hpItem = Calcium?.Data?.Realm?.variables?.item_use_honey_pot_value ?? null;
+    const hpPlayer = Calcium?.Data?.Realm?.variables?.player_update_honey_pot_value ?? null;
+    const hpMap = Calcium?.Data?.Realm?.variables?.map_honey_pot_value ?? null;
+    const hpBattle = Calcium?.Data?.Realm?.variables?.battle_send_honey_pot_value;
 
     const headers = new Headers();
 
@@ -1011,25 +1014,26 @@ function initAllianceData() {
     };
   }
 
-  async function useItem(playerUuid, itemUuid, quantity = 1) {
+
+  async function useItem(playerUuid, itemUuid, payload = {}) {
     return calciumApiFetch(
       `/api/players/${playerUuid}/items/${itemUuid}/use`,
       {
         method: 'POST',
-        json: { quantity }
+        json: payload
       }
     );
   }
 
-  async function useCurrentPlayerItem(itemUuid, quantity = 1) {
+  async function useCurrentPlayerItem(itemUuid, payload = {}) {
     const playerUuid = Calcium?.guid?.player || Calcium?.Data?.Player?.uuid;
+
     if (!playerUuid) {
       return { ok: false, error: 'NO_PLAYER_UUID' };
     }
 
-    return useItem(playerUuid, itemUuid, quantity);
+    return useItem(playerUuid, itemUuid, payload);
   }
-
 
   window.addEventListener('message', (event) => {
     if (event.source !== window) return;

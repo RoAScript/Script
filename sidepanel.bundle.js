@@ -32,7 +32,7 @@ const CalciumI18n = {
       quarry: "Carrière",
       theater: "Théatre",
       sentinel: "Sentinelle",
-      science_center: "Centre scient.",
+      science_center: "Centre scientifique",
       rookery: "Volière",
       storage_vault: "Coffre fort",
       wall: "Mur"
@@ -152,7 +152,10 @@ const CalciumI18n = {
       combat_buffs_chest: "Coffre de combat",
       chronos_satchel: "Sacoche Chronos",
       cease_fire_treaty: "Cessez le feu",
-      great_dragon_armor_helmet: "Casque du dragon",
+      great_dragon_armor_helmet: "Casque draconique",
+      great_dragon_armor_body: "Plastron draconique",
+      great_dragon_armor_claws: "Griffes draconique",
+      great_dragon_armor_claws: "Queue draconique",
       abyssal_demon_chest: "Coffre abyssal du démon",
       infernal_blood_chest: "Coffre infernal du sang",
       void_demon_chest: "Coffre démonniaque",
@@ -182,7 +185,7 @@ const UI_STATE = {
     lumber: true,
     metal: true,
     stone: true,
-    blue_energy: true,
+    blue_energy: false,
     gold: true,
     soulc: false,
     ruby: false,
@@ -256,9 +259,11 @@ function formatDuration(seconds) {
   return parts.join(' ');
 }
 
-function formatCompactNumber(value) {
+function formatCompactNumber(value, decimals = 1) {
   const num = Number(value);
   if (!Number.isFinite(num)) return '0';
+
+  const safeDecimals = Number.isInteger(decimals) && decimals >= 0 ? decimals : 1;
 
   const abs = Math.abs(num);
   const sign = num < 0 ? '-' : '';
@@ -279,10 +284,12 @@ function formatCompactNumber(value) {
     return `${num}`;
   }
 
-  const rounded = Math.round(shortValue * 10) / 10;
+  const factor = 10 ** safeDecimals;
+  const rounded = Math.round(shortValue * factor) / factor;
+
   const display = Number.isInteger(rounded)
     ? String(rounded)
-    : rounded.toFixed(1);
+    : rounded.toFixed(safeDecimals);
 
   return `${sign}${display}${suffix}`;
 }
@@ -678,7 +685,9 @@ async function callApi(path, { method = 'GET', json, headers } = {}) {
 
 
 
-/* ===== MODULE: src/sidepanel/player-tab.js ===== */
+/* ===== MODULE: src/sidepanel/player-tab-core.js ===== */
+
+let buildingTabRefreshInterval = null;
 
 async function requestCalciumApi(path, {
   method = 'GET',
@@ -694,8 +703,44 @@ async function requestCalciumApi(path, {
   });
 }
 
-async function usePlayerItem(itemUuid, quantity = 1) {
+function initGlobalTooltips() {
+  const tooltip = document.createElement('div');
+  tooltip.className = 'calcium-global-tooltip';
+  document.body.appendChild(tooltip);
+
+  document.addEventListener('mouseover', (event) => {
+    const el = event.target.closest('[title]');
+    if (!el) return;
+
+    const text = el.getAttribute('title');
+    if (!text) return;
+
+    el.dataset.originalTitle = text;
+    el.removeAttribute('title');
+
+    tooltip.textContent = text;
+    tooltip.style.opacity = '1';
+  });
+
+  document.addEventListener('mousemove', (event) => {
+    tooltip.style.left = `${event.pageX + 10}px`;
+    tooltip.style.top = `${event.pageY + 10}px`;
+  });
+
+  document.addEventListener('mouseout', (event) => {
+    const el = event.target.closest('[data-original-title]');
+    if (!el) return;
+
+    el.setAttribute('title', el.dataset.originalTitle);
+    delete el.dataset.originalTitle;
+
+    tooltip.style.opacity = '0';
+  });
+}
+
+async function usePlayerItem(itemUuid, options = {}) {
   const calcium = UI_STATE.snapshot?.calcium || null;
+
   const playerUuid =
     calcium?.guid?.player ||
     calcium?.Data?.Player?.uuid ||
@@ -713,9 +758,52 @@ async function usePlayerItem(itemUuid, quantity = 1) {
     `/api/players/${playerUuid}/items/${itemUuid}/use`,
     {
       method: 'POST',
-      json: { count: quantity }
+      json: options ?? {}
     }
   );
+}
+
+function updateBuildingTimersOnly() {
+  const panel = document.getElementById('calcium-player-panel');
+  if (!panel) return;
+
+  const timers = panel.querySelectorAll('[data-building-remaining-seconds]');
+  if (!timers.length) return;
+
+  timers.forEach((node) => {
+    const current = Number(node.dataset.buildingRemainingSeconds ?? '0');
+    const next = Math.max(0, current - 1);
+
+    node.dataset.buildingRemainingSeconds = String(next);
+    node.textContent = formatDuration(next);
+
+    if (next <= 0) {
+      node.classList.remove('is-active');
+    }
+  });
+}
+
+function stopBuildingTabRefresh() {
+  if (!buildingTabRefreshInterval) return;
+
+  window.clearInterval(buildingTabRefreshInterval);
+  buildingTabRefreshInterval = null;
+}
+
+function syncBuildingTabRefresh() {
+  if (UI_STATE.activePlayerSubTab === 'batiments') {
+    if (!buildingTabRefreshInterval) {
+      buildingTabRefreshInterval = window.setInterval(() => {
+        if (UI_STATE.activePlayerSubTab === 'batiments') {
+          updateBuildingTimersOnly();
+        }
+      }, 1000);
+    }
+
+    return;
+  }
+
+  stopBuildingTabRefresh();
 }
 
 function buildPlayerHero() {
@@ -730,9 +818,91 @@ function buildPlayerHero() {
   `;
 }
 
+function getItemActionReductionSeconds(itemDef) {
+  const effects = Array.isArray(itemDef?.effects) ? itemDef.effects : [];
+  const effect = effects.find((entry) => entry?.name === 'action_time_reduction');
+  if (!effect) return 0;
+
+  return Math.max(0, Number(effect?.default ?? 0));
+}
+
+function formatDurationShort(seconds) {
+  const total = Math.max(0, Number(seconds || 0));
+
+  if (total < 60) {
+    return `${total}s`;
+  }
+
+  if (total < 3600) {
+    return `${Math.round(total / 60)}m`;
+  }
+
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+
+  if (minutes === 0) {
+    return `${hours}h`;
+  }
+
+  return `${hours}h${minutes}`;
+}
+
+function applyOptimisticInventoryConsumption(itemUuid, usedCount) {
+  const items = UI_STATE.snapshot?.calcium?.Data?.Player?.items;
+  if (!Array.isArray(items)) return;
+
+  const item = items.find((entry) => String(entry?.uuid || '') === String(itemUuid));
+  if (!item) return;
+
+  item.count = Math.max(0, Number(item.count ?? 0) - Number(usedCount ?? 0));
+}
+
+
+function applyOptimisticActionAcceleration(actionUuid, reductionSeconds) {
+  const collections = [
+    UI_STATE.snapshot?.derived?.buildingActions,
+    UI_STATE.snapshot?.derived?.activeBuildingActions,
+    UI_STATE.snapshot?.derived?.searchActions,
+    UI_STATE.snapshot?.derived?.troopActions,
+    UI_STATE.snapshot?.calcium?.Data?.Actions
+  ];
+
+
+  collections.forEach((collection) => {
+    if (!Array.isArray(collection)) return;
+
+    const action = collection.find((entry) => String(entry?.uuid || '') === String(actionUuid));
+    if (!action) return;
+
+    const currentRemaining = Math.max(
+      0,
+      Number(action.remainingTime ?? getRemainingSeconds(action))
+    );
+
+    const nextRemaining = Math.max(
+      0,
+      currentRemaining - Number(reductionSeconds ?? 0)
+    );
+
+    action.remainingTime = nextRemaining;
+    action.endAt = new Date(Date.now() + nextRemaining * 1000).toISOString();
+
+    if (nextRemaining <= 0) {
+      action.finished = true;
+    }
+  });
+}
+
+
+
+/* ===== MODULE: src/sidepanel/player-tab-general.js ===== */
+
+let rerenderGeneralPlayerPanel = null;
+
 function normalizeItemCategory(category) {
   return String(category || '').trim();
 }
+
 
 function formatItemCategoryLabel(category) {
   if (category === 'all') {
@@ -748,6 +918,7 @@ function formatItemCategoryLabel(category) {
     .replaceAll('_', ' ')
     .replace(/\b\w/g, (char) => char.toUpperCase());
 }
+
 
 function getVisiblePlayerItems(calcium) {
   const itemDefinitions = Array.isArray(calcium?.Data?.Item)
@@ -773,6 +944,7 @@ function getVisiblePlayerItems(calcium) {
     }));
 }
 
+
 function getAvailableItemCategories(calcium) {
   const categories = Array.from(
     new Set(
@@ -785,13 +957,14 @@ function getAvailableItemCategories(calcium) {
   return ['all', ...categories];
 }
 
+
 function ensureValidActiveItemCategory(calcium) {
   const availableCategories = getAvailableItemCategories(calcium);
-
   if (!availableCategories.includes(UI_STATE.activeItemCategory)) {
     UI_STATE.activeItemCategory = 'all';
   }
 }
+
 
 function setActiveItemCategory(category) {
   UI_STATE.activeItemCategory = normalizeItemCategory(category || 'all') || 'all';
@@ -800,12 +973,12 @@ function setActiveItemCategory(category) {
     tab.classList.toggle('active', tab.dataset.itemCategory === UI_STATE.activeItemCategory);
   });
 
-  renderPlayerPanel();
+  rerenderGeneralPlayerPanel?.();
 }
+
 
 function buildItemCategoryTabs(calcium) {
   const categories = getAvailableItemCategories(calcium);
-
   if (categories.length <= 1) {
     return '';
   }
@@ -825,6 +998,7 @@ function buildItemCategoryTabs(calcium) {
   `;
 }
 
+
 function buildItemBloc(calcium) {
   ensureValidActiveItemCategory(calcium);
 
@@ -837,18 +1011,14 @@ function buildItemBloc(calcium) {
 
   const itemsHtml = filtered.length
     ? filtered.map(({ itemDef, playerItem }) => {
-
         const itemLabel = escapeHtml(
           getLabelTrans(itemDef?.id, 'item') || itemDef?.id
         );
-
         const itemCount = escapeHtml(
           formatCompactNumber(playerItem?.count ?? 0)
         );
-
         const itemUuid = escapeHtml(playerItem?.uuid || '');
         const maxQty = playerItem?.count ?? 0;
-
         const def = calcium?.Data?.Item?.find(i => i.id === itemDef.id);
 
         const canUse =
@@ -867,7 +1037,6 @@ function buildItemBloc(calcium) {
                 <button class="calcium-item-trigger">⚡</button>
               ` : ''}
             </div>
-
             ${canUse ? `
               <div class="calcium-item-panel">
                 <button class="qty-btn" data-action="dec">-</button>
@@ -879,7 +1048,6 @@ function buildItemBloc(calcium) {
                 </button>
               </div>
             ` : ''}
-
           </div>
         `;
       }).join('')
@@ -896,6 +1064,7 @@ function buildItemBloc(calcium) {
   `;
 }
 
+
 function bindItemActions(scope = document) {
   const grid = scope.querySelector('[data-item-grid="true"]');
   if (!grid || grid.dataset.bound === 'true') return;
@@ -910,7 +1079,9 @@ function bindItemActions(scope = document) {
     btn.classList.toggle('active');
     const card = btn.closest('.calcium-item-card');
 
-    grid.querySelectorAll('.open').forEach(c => c !== card && c.classList.remove('open'));
+    grid.querySelectorAll('.open').forEach(c => {
+      if (c !== card) c.classList.remove('open');
+    });
 
     card.classList.toggle('open');
   });
@@ -929,13 +1100,13 @@ function bindItemActions(scope = document) {
     if (!btn) return;
 
     const card = btn.closest('.calcium-item-card');
-    const input = card.querySelector('.calcium-item-qty');
+    const input = card?.querySelector('.calcium-item-qty');
+    if (!input) return;
 
     let v = Number(input.value);
     const max = Number(input.max);
 
     v += btn.dataset.action === 'inc' ? 1 : -1;
-
     if (v < 1) v = 1;
     if (v > max) v = max;
 
@@ -947,7 +1118,9 @@ function bindItemActions(scope = document) {
     const btn = e.target.closest('.qty-max');
     if (!btn) return;
 
-    const input = btn.closest('.calcium-item-card').querySelector('.calcium-item-qty');
+    const input = btn.closest('.calcium-item-card')?.querySelector('.calcium-item-qty');
+    if (!input) return;
+
     input.value = input.max;
   });
 
@@ -971,7 +1144,8 @@ function bindItemActions(scope = document) {
     if (!btn) return;
 
     const card = btn.closest('.calcium-item-card');
-    const input = card.querySelector('.calcium-item-qty');
+    const input = card?.querySelector('.calcium-item-qty');
+    if (!card || !input) return;
 
     const qty = Number(input.value || 1);
 
@@ -979,8 +1153,14 @@ function bindItemActions(scope = document) {
     btn.textContent = '...';
 
     try {
-      await usePlayerItem(btn.dataset.itemUuid, qty);
-      card.classList.remove('open'); // fermeture auto
+      const response = await usePlayerItem(btn.dataset.itemUuid, { count: qty });
+
+      if (!response?.ok) {
+        btn.textContent = 'Err';
+        return;
+      }
+
+      card.classList.remove('open');
       btn.textContent = 'OK';
     } catch {
       btn.textContent = 'Err';
@@ -989,6 +1169,161 @@ function bindItemActions(scope = document) {
     }
   });
 }
+
+
+function getResourceGenerationStats(calcium) {
+  const playerBuildings = Array.isArray(calcium?.Data?.Player?.building)
+    ? calcium.Data.Player.building
+    : Array.isArray(calcium?.Data?.Player?.buildings)
+      ? calcium.Data.Player.buildings
+      : [];
+
+  const buildingDefinitions = Array.isArray(calcium?.Data?.Buildings)
+    ? calcium.Data.Buildings
+    : [];
+
+  const searchDefinitions = Array.isArray(calcium?.Data?.Search)
+    ? calcium.Data.Search
+    : Array.isArray(calcium?.Data?.search)
+      ? calcium.Data.search
+      : [];
+
+  const playerSearches = Array.isArray(calcium?.Data?.Player?.search)
+    ? calcium.Data.Player.search
+    : Array.isArray(calcium?.Data?.Player?.searches)
+      ? calcium.Data.Player.searches
+      : Array.isArray(calcium?.Player?.search)
+        ? calcium.Player.search
+        : [];
+
+  const buildingDefinitionsById = new Map(
+    buildingDefinitions.map((definition) => [definition?.id, definition])
+  );
+
+  const playerSearchesByDefinitionId = new Map(
+    playerSearches.map((research) => [research?.definitionId, research])
+  );
+
+  const statsByResource = {};
+
+  for (const playerBuilding of playerBuildings) {
+    const definitionId = playerBuilding?.definitionId;
+    const level = playerBuilding?.level;
+    if (!definitionId || level == null) continue;
+
+    const definition = buildingDefinitionsById.get(definitionId);
+    const generations = definition?.generations;
+    if (!generations) continue;
+
+    const generationAtLevel = generations[String(level)];
+    if (!generationAtLevel) continue;
+
+    const generatedResources = generationAtLevel?.resources ?? {};
+    const capacity = Number(generationAtLevel?.capacity) || 0;
+
+    for (const [resourceType, perHourRaw] of Object.entries(generatedResources)) {
+      const perHour = Number(perHourRaw) || 0;
+
+      if (!statsByResource[resourceType]) {
+        statsByResource[resourceType] = {
+          basePerHour: 0,
+          bonusRate: 0,
+          bonusPerHour: 0,
+          perHour: 0,
+          capacity: 0,
+          appliedResearches: []
+        };
+      }
+
+      statsByResource[resourceType].basePerHour += perHour;
+      statsByResource[resourceType].capacity += capacity;
+    }
+  }
+
+  for (const searchDefinition of searchDefinitions) {
+    if (searchDefinition?.enabled === false) continue;
+    const searchId = searchDefinition?.id;
+    if (!searchId) continue;
+
+    const effects = Array.isArray(searchDefinition?.effects)
+      ? searchDefinition.effects
+      : [];
+
+    if (!effects.length) continue;
+
+    const playerResearch = playerSearchesByDefinitionId.get(searchId);
+    if (!playerResearch) continue;
+
+    const researchLevel = Number(playerResearch?.level);
+    if (!Number.isFinite(researchLevel)) continue;
+
+    for (const effect of effects) {
+      if (effect?.name !== 'resource_generation_increase') continue;
+      const resourceType = effect?.resource_type;
+      if (!resourceType) continue;
+
+      const defaultValue = Number(effect?.default) || 0;
+      const scaleValue = Number(effect?.scale) || 0;
+      const bonusRate = defaultValue + researchLevel * scaleValue;
+
+      if (!statsByResource[resourceType]) {
+        statsByResource[resourceType] = {
+          basePerHour: 0,
+          bonusRate: 0,
+          bonusPerHour: 0,
+          perHour: 0,
+          capacity: 0,
+          appliedResearches: []
+        };
+      }
+
+      statsByResource[resourceType].bonusRate += bonusRate;
+      statsByResource[resourceType].appliedResearches.push({
+        researchId: searchId,
+        researchLevel,
+        bonusRate,
+        defaultValue,
+        scaleValue
+      });
+    }
+  }
+
+  for (const resourceType of Object.keys(statsByResource)) {
+    const stat = statsByResource[resourceType];
+    const basePerHour = Number(stat.basePerHour) || 0;
+    const totalBonusRate = Number(stat.bonusRate) || 0;
+    const finalPerHour = basePerHour * (1 + totalBonusRate);
+    const bonusPerHour = finalPerHour - basePerHour;
+
+    stat.bonusPerHour = bonusPerHour;
+    stat.perHour = finalPerHour;
+  }
+
+  return statsByResource;
+}
+
+
+function bindEventResource() {
+  if (document.body.dataset.resourceBound === 'true') return;
+  document.body.dataset.resourceBound = 'true';
+
+  document.addEventListener('click', function (e) {
+    const header = e.target.closest('.calcium-resource-header');
+    if (!header) return;
+
+    const card = header.closest('.calcium-resource-card');
+    if (!card) return;
+
+    const isOpen = card.classList.contains('is-open');
+
+    document.querySelectorAll('.calcium-resource-card.is-open').forEach(el => {
+      if (el !== card) el.classList.remove('is-open');
+    });
+
+    card.classList.toggle('is-open', !isOpen);
+  });
+}
+
 
 function buildResourcesBlock(calcium) {
   const resources = Array.isArray(calcium?.Data?.Player?.resource)
@@ -999,33 +1334,121 @@ function buildResourcesBlock(calcium) {
     (resource) => UI_STATE.showResources[resource?.type] === true
   );
 
-  const storageVaultPlayer = (calcium?.Data?.Player?.building || []).find(
-    (building) => building?.definitionId === 'storage_vault'
-  );
+  const playerBuildings = Array.isArray(calcium?.Data?.Player?.building)
+    ? calcium.Data.Player.building
+    : Array.isArray(calcium?.Data?.Player?.buildings)
+      ? calcium.Data.Player.buildings
+      : [];
 
+  const buildingDefinitions = Array.isArray(calcium?.Data?.Buildings)
+    ? calcium.Data.Buildings
+    : [];
+
+  const generationStats = getResourceGenerationStats(calcium);
+
+  const storageVaultPlayer = playerBuildings.find(
+    (b) => b?.definitionId === 'storage_vault'
+  );
   const storageVaultLevel = storageVaultPlayer?.level ?? null;
-
-  const storageVaultDefinition = (calcium?.Data?.Buildings || []).find(
-    (building) => building?.id === 'storage_vault'
+  const storageVaultDefinition = buildingDefinitions.find(
+    (b) => b?.id === 'storage_vault'
   );
-
   const storageVaultProtection =
     storageVaultDefinition?.metadata?.[String(storageVaultLevel)]?.protection ?? {};
 
   const resourcesHtml = visibleResources.length
     ? visibleResources.map((resource) => {
-        const label = escapeHtml(getLabelTrans(resource?.type, 'resource'));
-        const amount = escapeHtml(formatCompactNumber(Number(resource?.amount)));
-        const resProtected = escapeHtml(
-          formatCompactNumber(storageVaultProtection?.[resource?.type] ?? 0)
-        );
+        const type = resource?.type;
+        const imageSrc = chrome.runtime.getURL(`images/${type}.webp`);
+        const imageAlt = escapeHtml(getLabelTrans(type, 'resource'));
+        const amountValue = Number(resource?.amount) || 0;
+        const amount = escapeHtml(formatCompactNumber(amountValue));
+        const protectedValue = Number(storageVaultProtection?.[type] ?? 0);
+        const resProtected = escapeHtml(formatCompactNumber(protectedValue));
+
+        const stats = generationStats?.[type] ?? {};
+        const basePerHour = Number(stats?.basePerHour ?? 0);
+        const bonusRate = Number(stats?.bonusRate ?? 0);
+        const bonusPerHour = Number(stats?.bonusPerHour ?? 0);
+        const genPerHour = Number(stats?.perHour ?? 0);
+        const storageCapacity = Number(stats?.capacity ?? 0);
+
+        const baseDisplay = escapeHtml(formatCompactNumber(basePerHour));
+        const finalDisplay = escapeHtml(formatCompactNumber(genPerHour));
+        const bonusPerHourDisplay = escapeHtml(formatCompactNumber(bonusPerHour, 2));
+        const capacityDisplay = escapeHtml(formatCompactNumber(storageCapacity));
+        const bonusPercentDisplay = `${(bonusRate * 100).toFixed(
+          bonusRate * 100 >= 10 ? 0 : 1
+        )}%`;
+
+        const appliedResearches = Array.isArray(stats?.appliedResearches)
+          ? stats.appliedResearches
+          : [];
 
         return `
           <div class="calcium-resource-card">
-            <span class="calcium-resource-label">${label}</span>
-            <div class="calcium-resource-values">
-              <span class="calcium-resource-amount">${amount}</span>
-              <span class="calcium-resource-pill">🔒 ${resProtected}</span>
+            <div class="calcium-resource-header">
+              <span class="calcium-resource-label">
+                <img
+                  src="${imageSrc}"
+                  alt="${imageAlt}"
+                  title="${imageAlt}"
+                  class="calcium-resource-icon"
+                >
+              </span>
+              <div class="calcium-resource-values">
+                <span class="calcium-resource-amount">${amount}</span>
+                <span class="calcium-resource-pill">🔒 ${resProtected}</span>
+              </div>
+            </div>
+            <div class="calcium-resource-details">
+              <div class="calcium-details-line">
+                <span>Base</span>
+                <span>${baseDisplay}/h</span>
+              </div>
+              ${
+                bonusRate > 0
+                  ? `
+                    <div class="calcium-details-line">
+                      <span>Bonus</span>
+                      <span>+${bonusPercentDisplay}</span>
+                    </div>
+                    <div class="calcium-details-line">
+                      <span>Gain bonus</span>
+                      <span>+${bonusPerHourDisplay}/h</span>
+                    </div>
+                  `
+                  : ''
+              }
+              <div class="calcium-details-line calcium-details-line--final">
+                <span>Final</span>
+                <span>${finalDisplay}/h</span>
+              </div>
+              ${
+                storageCapacity > 0
+                  ? `
+                    <div class="calcium-details-line">
+                      <span>Stockage</span>
+                      <span>${capacityDisplay}</span>
+                    </div>
+                  `
+                  : ''
+              }
+              ${
+                appliedResearches.length
+                  ? `
+                    <div class="calcium-details-section">
+                      <div class="calcium-details-title">Recherches</div>
+                      ${appliedResearches.map(r => `
+                        <div class="calcium-details-line">
+                          <span>${getLabelTrans(r.researchId, 'research')} niv.${r.researchLevel}</span>
+                          <span>+${(r.bonusRate * 100).toFixed(0)}%</span>
+                        </div>
+                      `).join('')}
+                    </div>
+                  `
+                  : ''
+              }
             </div>
           </div>
         `;
@@ -1041,6 +1464,7 @@ function buildResourcesBlock(calcium) {
     </div>
   `;
 }
+
 
 function buildActionsOverview(calcium) {
   const actions = Array.isArray(calcium?.Data?.Actions)
@@ -1102,11 +1526,9 @@ function buildActionsOverview(calcium) {
   const sorted = [...actions].sort((a, b) => {
     const orderA = ENTITY_META[a.entity]?.order ?? 999;
     const orderB = ENTITY_META[b.entity]?.order ?? 999;
-
     if (orderA !== orderB) {
       return orderA - orderB;
     }
-
     return getRemainingSeconds(a) - getRemainingSeconds(b);
   });
 
@@ -1146,29 +1568,87 @@ function buildActionsOverview(calcium) {
   return `<div class="calcium-action-overview-list">${rows}</div>`;
 }
 
+
 function renderPlayerGeneralTab(calcium) {
   const username = escapeHtml(formatValue(calcium?.Data?.Player?.username));
   const level = formatValue(calcium?.Data?.Player?.level, '0');
   const power = formatValue(calcium?.Data?.Player?.power, '0');
   const realmName = escapeHtml(formatValue(calcium?.Data?.Realm?.name));
+  const versionCalcium = `v${chrome.runtime.getManifest().version}`;
 
   return `
     <div class="calcium-player-hero">
-      <div class="calcium-player-title-realm">Royaume : ${realmName}</div>
+      <div class="calcium-player-title-realm">Royaume : ${realmName} - Calcium ${versionCalcium}</div>
       <div class="calcium-player-title-sub">
         ${username} - ${getLabelTrans('level')} ${level} - ${getLabelTrans('power')} ${formatCompactNumber(power)}
       </div>
     </div>
-
     ${buildResourcesBlock(calcium)}
     ${buildItemBloc(calcium)}
-
     <div class="calcium-player-section">
       <div class="calcium-player-subtitle">Actions en cours</div>
       ${buildActionsOverview(calcium)}
     </div>
   `;
 }
+
+
+function bindGeneralTabEvents(panel, renderPlayerPanel) {
+  rerenderGeneralPlayerPanel = renderPlayerPanel;
+
+  panel.querySelectorAll('.calcium-item-subtab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      setActiveItemCategory(tab.dataset.itemCategory);
+    });
+  });
+
+  bindItemActions(panel);
+  bindEventResource();
+}
+
+
+
+/* ===== MODULE: src/sidepanel/player-tab-troops.js ===== */
+
+function buildTroopActionsSummary() {
+  const actions = [...(UI_STATE.snapshot?.derived?.troopActions || [])]
+    .filter(action => !action.finished)
+    .sort((a, b) => getRemainingSeconds(a) - getRemainingSeconds(b));
+
+  if (!actions.length) {
+    return `<div class="calcium-actions-empty">Rien dans la file d'attente</div>`;
+  }
+
+  return `
+    <div class="calcium-actions-list">
+      ${actions.map(action => {
+        const troopP = (UI_STATE.snapshot?.calcium?.Data?.Player?.troop || []).find(
+          b => b.uuid === String(action.metadata?.troop_uuid)
+        );
+        const troopName = getLabelTrans(troopP?.definitionId, 'troop') || 'Troupe inconnue';
+        const remaining = formatDuration(getRemainingSeconds(action));
+
+        return `
+          <div class="calcium-action-item" data-action-uuid="${escapeHtml(action.uuid)}">
+            <div class="calcium-action-main">
+              <span class="calcium-action-badge"></span>
+              <span class="calcium-action-title">${escapeHtml(troopName)} x${escapeHtml(formatValue(action.metadata?.amount, '0'))}</span>
+              <span
+                class="calcium-action-timer"
+                data-end-at="${escapeHtml(formatValue(action.endAt, ''))}"
+                data-finished="${String(!!action.finished)}"
+                data-remaining-time="${Number(action.remainingTime || 0)}"
+              >
+                ${escapeHtml(remaining)}
+              </span>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
 
 function renderPlayerTroopsTab(calcium) {
   const troopDefinitions = Array.isArray(calcium?.Data?.Troop)
@@ -1225,7 +1705,6 @@ function renderPlayerTroopsTab(calcium) {
       <div class="calcium-player-subtitle">Actions de formation</div>
       ${buildTroopActionsSummary()}
     </div>
-
     <div class="calcium-player-section">
       <div class="calcium-player-subtitle">Troupes</div>
       <div class="calcium-table-wrap">
@@ -1246,93 +1725,134 @@ function renderPlayerTroopsTab(calcium) {
   `;
 }
 
-function buildSearchRows() {
-  const playerSearch = UI_STATE.snapshot?.calcium?.Data?.Player?.search || [];
 
-  return playerSearch.map(search => {
-    const displayLabel = getLabelTrans(search.definitionId, 'research');
-    const levelRange = search.level;
 
-    return `
-      <tr>
-        <td>
-          <div class="calcium-building-cell">
-            <div>
-              ${search.status === 'searching'
-                ? `<span class="calcium-building-indicator" title="Recherche en cours"></span>`
-                : `<span class="calcium-building-indicator is-idle"></span>`
-              }
-              <span class="calcium-building-name">${escapeHtml(displayLabel)}</span>
-              <span class="calcium-building-meta">${levelRange}</span>
-            </div>
-          </div>
-        </td>
-        <td>
-          ${search.status === 'searching'
-            ? `<span class="calcium-building-group-status is-active">En recherche</span>`
-            : `<span class="calcium-building-group-status">Stable</span>`
-          }
-        </td>
-      </tr>
-    `;
-  }).join('');
+/* ===== MODULE: src/sidepanel/player-tab-buildings.js ===== */
+
+let rerenderBuildingsPlayerPanel = null;
+
+function getAvailableBuildingAccelerationItems(calcium) {
+  const itemDefinitions = Array.isArray(calcium?.Data?.Item)
+    ? calcium.Data.Item
+    : [];
+
+  const playerItems = Array.isArray(calcium?.Data?.Player?.items)
+    ? calcium.Data.Player.items
+    : [];
+
+  const playerItemsByDefinitionId = Object.fromEntries(
+    playerItems
+      .filter((item) => item?.definitionId && Number(item?.count ?? 0) > 0)
+      .map((item) => [item.definitionId, item])
+  );
+
+  return itemDefinitions
+    .filter((itemDef) => {
+      const playerItem = playerItemsByDefinitionId[itemDef?.id];
+      const contexts = Array.isArray(itemDef?.contexts) ? itemDef.contexts : [];
+      const reductionSeconds = getItemActionReductionSeconds(itemDef);
+
+      return !!playerItem
+        && itemDef?.category === 'acceleration'
+        && itemDef?.usable === true
+        && itemDef?.targetable === true
+        && contexts.includes('building')
+        && reductionSeconds > 0;
+    })
+    .map((itemDef) => ({
+      itemDef,
+      playerItem: playerItemsByDefinitionId[itemDef.id]
+    }))
+    .sort((a, b) => {
+      const aSeconds = getItemActionReductionSeconds(a.itemDef);
+      const bSeconds = getItemActionReductionSeconds(b.itemDef);
+      return aSeconds - bSeconds;
+    });
 }
 
-function buildSearchActionsSummary() {
-  const actions = [...(UI_STATE.snapshot?.derived?.searchActions || [])]
-    .filter(action => !action.finished)
-    .sort((a, b) => getRemainingSeconds(a) - getRemainingSeconds(b));
 
-  if (!actions.length) {
-    return `<div class="calcium-actions-empty">Aucune action de recherche en cours</div>`;
-  }
+function buildAccelerationBuildingButtons(action, calcium) {
+  const items = getAvailableBuildingAccelerationItems(calcium);
+  if (!items.length) return '';
 
   return `
-    <div class="calcium-actions-list">
-      ${actions.map(action => {
-        const searchUuid = action.metadata?.research_uuid;
-        const searchP = (UI_STATE.snapshot?.calcium?.Data?.Player?.search || []).find(
-          b => b.uuid === String(searchUuid)
-        );
-
-        const definitionId = action.metadata?.definitionId || searchP?.definitionId;
-        const searchName = getLabelTrans(definitionId, 'research') || 'Recherche inconnue';
-
-        const remaining = formatDuration(getRemainingSeconds(action));
-
-        const currentLevel = Number(
-          action.metadata?.currentLevel ??
-          searchP?.level ??
-          0
-        );
-
-        const targetLevel = Number(
-          action.metadata?.targetLevel ??
-          (currentLevel + 1)
-        );
+    <div class="calcium-accel-buttons">
+      ${items.map(({ itemDef, playerItem }) => {
+        const seconds = getItemActionReductionSeconds(itemDef);
+        const label = formatDurationShort(seconds);
+        const stock = Number(playerItem?.count ?? 0);
 
         return `
-          <div class="calcium-action-item" data-action-uuid="${escapeHtml(action.uuid)}">
-            <div class="calcium-action-main">
-              <span class="calcium-action-badge"></span>
-              <span class="calcium-action-title">${escapeHtml(searchName)} ${currentLevel} -> ${targetLevel}</span>
-              <span
-                class="calcium-action-timer"
-                data-end-at="${escapeHtml(formatValue(action.endAt, ''))}"
-                data-finished="${String(!!action.finished)}"
-                data-remaining-time="${Number(action.remainingTime || 0)}"
-              >
-                ${escapeHtml(remaining)}
-              </span>
-            </div>
-          </div>
+          <button
+            type="button"
+            class="calcium-accel-btn"
+            data-item-uuid="${escapeHtml(playerItem.uuid || '')}"
+            data-action-uuid="${escapeHtml(action.uuid || '')}"
+            data-reduction-seconds="${seconds}"
+            title="${escapeHtml(`${getLabelTrans(itemDef?.id, 'item') || itemDef?.id} • stock ${stock}`)}"
+          >
+            ${escapeHtml(label)}
+          </button>
         `;
       }).join('')}
     </div>
   `;
 }
 
+function bindBuildingAccelerationButtons(scope = document) {
+  const container = scope.querySelector('.calcium-actions-list');
+  if (!container || container.dataset.buildingAccelBound === 'true') return;
+
+  container.dataset.buildingAccelBound = 'true';
+
+  container.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.calcium-accel-btn');
+    if (!btn) return;
+
+    const itemUuid = btn.dataset.itemUuid;
+    const actionUuid = btn.dataset.actionUuid;
+    const reductionSeconds = Number(btn.dataset.reductionSeconds || 0);
+
+    if (!itemUuid || !actionUuid) return;
+
+    btn.disabled = true;
+    const previousText = btn.textContent;
+    btn.textContent = '...';
+
+    try {
+      const response = await usePlayerItem(itemUuid, {
+        count: 1,
+        target: {
+          type: 'action',
+          value: actionUuid
+        }
+      });
+
+      if (!response?.ok) {
+        btn.textContent = 'Err';
+        return;
+      }
+
+      applyOptimisticInventoryConsumption(itemUuid, 1);
+      applyOptimisticActionAcceleration(actionUuid, reductionSeconds);
+
+      rerenderBuildingsPlayerPanel?.();
+    } catch (error) {
+      console.error('[Calcium][building-accel] KO', error);
+      btn.textContent = 'Err';
+    } finally {
+      window.setTimeout(() => {
+        btn.disabled = false;
+        if (btn.isConnected) {
+          btn.textContent = previousText;
+        }
+      }, 250);
+    }
+  });
+}
+
 function buildBuildingActionsSummary() {
+  const calcium = UI_STATE.snapshot?.calcium || null;
   const actions = [...(UI_STATE.snapshot?.derived?.buildingActions || [])]
     .filter(action => !action.finished)
     .sort((a, b) => getRemainingSeconds(a) - getRemainingSeconds(b));
@@ -1344,28 +1864,50 @@ function buildBuildingActionsSummary() {
   return `
     <div class="calcium-actions-list">
       ${actions.map(action => {
-        const buildingUuid = action.metadata?.building_uuid;
+        const buildingUuid = action.metadata?.building_uuid || action.metadata?.buildingUuid;
         const building = (UI_STATE.snapshot?.calcium?.Data?.Player?.building || []).find(
           b => b.uuid === String(buildingUuid)
         );
+
+        const remainingSeconds = getRemainingSeconds(action);
+        const remaining = formatDuration(remainingSeconds);
+        const currentLevel = Number(
+          action.metadata?.currentLevel ??
+          building?.level ??
+          0
+        );
+        const targetLevel = Number(
+          action.metadata?.targetLevel ??
+          (currentLevel + 1)
+        );
+
+        const iconSrc = chrome.runtime.getURL(`images/${building?.definitionId}.webp`);
         const buildingName = getLabelTrans(building?.label, 'buildings') || 'Bâtiment inconnu';
-        const remaining = formatDuration(getRemainingSeconds(action));
-        const currentLevel = Number(building?.level ?? 0);
 
         return `
-          <div class="calcium-action-item" data-action-uuid="${escapeHtml(action.uuid)}">
-            <div class="calcium-action-main">
+          <div class="calcium-action-item calcium-building-action-item" data-action-uuid="${escapeHtml(action.uuid)}">
+            <div class="calcium-action-main calcium-building-action-main">
               <span class="calcium-action-badge"></span>
-              <span class="calcium-action-title">${escapeHtml(buildingName)} ${currentLevel} -> ${currentLevel + 1}</span>
+              <span class="calcium-action-title">
+                <img
+                  src="${iconSrc}"
+                  alt="${escapeHtml(buildingName)}"
+                  title="${escapeHtml(buildingName)}"
+                  class="calcium-resource-icon"
+                >
+                ${currentLevel} -> ${targetLevel}
+              </span>
               <span
                 class="calcium-action-timer"
                 data-end-at="${escapeHtml(formatValue(action.endAt, ''))}"
                 data-finished="${String(!!action.finished)}"
                 data-remaining-time="${Number(action.remainingTime || 0)}"
+                data-building-remaining-seconds="${Number(remainingSeconds || 0)}"
               >
                 ${escapeHtml(remaining)}
               </span>
             </div>
+            ${calcium ? buildAccelerationBuildingButtons(action, calcium) : ''}
           </div>
         `;
       }).join('')}
@@ -1373,11 +1915,13 @@ function buildBuildingActionsSummary() {
   `;
 }
 
+
 function getPlayerSettlements() {
   return Array.isArray(UI_STATE.snapshot?.calcium?.Data?.Player?.settlements)
     ? UI_STATE.snapshot.calcium.Data.Player.settlements
     : [];
 }
+
 
 function getBuildingsBySettlement() {
   const buildings = Array.isArray(UI_STATE.snapshot?.calcium?.Data?.Player?.building)
@@ -1385,7 +1929,6 @@ function getBuildingsBySettlement() {
     : [];
 
   const settlements = getPlayerSettlements();
-
   const settlementsByApiId = Object.fromEntries(
     settlements.map(settlement => [settlement?.['@id'], settlement])
   );
@@ -1401,7 +1944,6 @@ function getBuildingsBySettlement() {
 
   return Object.entries(grouped).map(([settlementApiId, settlementBuildings]) => {
     const settlement = settlementsByApiId[settlementApiId] || null;
-
     return {
       settlementApiId,
       settlement,
@@ -1410,6 +1952,7 @@ function getBuildingsBySettlement() {
     };
   }).sort((a, b) => String(a.label).localeCompare(String(b.label)));
 }
+
 
 function ensureValidActiveBuildingSettlement() {
   const groups = getBuildingsBySettlement();
@@ -1420,14 +1963,15 @@ function ensureValidActiveBuildingSettlement() {
   }
 }
 
+
 function setActiveBuildingSettlement(settlementApiId) {
   UI_STATE.activeBuildingSettlement = settlementApiId;
-  renderPlayerPanel();
+  rerenderBuildingsPlayerPanel?.();
 }
+
 
 function buildBuildingSettlementTabs() {
   const groups = getBuildingsBySettlement();
-
   if (!groups.length) return '';
 
   return `
@@ -1445,16 +1989,16 @@ function buildBuildingSettlementTabs() {
   `;
 }
 
+
 function buildGroupedBuildingsRowsBySettlement() {
   ensureValidActiveBuildingSettlement();
 
   const groups = getBuildingsBySettlement();
   const activeGroup = groups.find(
-    group => group.settlementApiId === UI_STATE.activeBuildingSettlement
+    (group) => group.settlementApiId === UI_STATE.activeBuildingSettlement
   );
 
   const buildings = Array.isArray(activeGroup?.buildings) ? activeGroup.buildings : [];
-
   if (!buildings.length) {
     return `
       <tr>
@@ -1463,18 +2007,27 @@ function buildGroupedBuildingsRowsBySettlement() {
     `;
   }
 
+  const buildingActions = Array.isArray(UI_STATE.snapshot?.derived?.buildingActions)
+    ? UI_STATE.snapshot.derived.buildingActions
+    : [];
+
   const groupedByDefinition = buildings.reduce((acc, building) => {
     const key = building?.definitionId || 'unknown';
     const level = Number(building?.level || 0);
+    const label =
+      getLabelTrans(building?.label, 'buildings') ||
+      getLabelTrans(key, 'buildings') ||
+      key;
 
     if (!acc[key]) {
       acc[key] = {
         definitionId: key,
-        label: getLabelTrans(building?.label, 'buildings') || getLabelTrans(key, 'buildings'),
+        label,
         count: 0,
         minLevel: level,
         maxLevel: level,
-        hasAction: false
+        hasAction: false,
+        remainingSeconds: null
       };
     }
 
@@ -1482,9 +2035,8 @@ function buildGroupedBuildingsRowsBySettlement() {
     acc[key].minLevel = Math.min(acc[key].minLevel, level);
     acc[key].maxLevel = Math.max(acc[key].maxLevel, level);
 
-    const buildingAction = (UI_STATE.snapshot?.derived?.buildingActions || []).find(action => {
+    const buildingAction = buildingActions.find((action) => {
       if (action?.finished) return false;
-
       return (
         action?.metadata?.building_uuid === building.uuid ||
         action?.metadata?.buildingUuid === building.uuid
@@ -1492,7 +2044,14 @@ function buildGroupedBuildingsRowsBySettlement() {
     });
 
     if (buildingAction) {
+      const remainingSeconds = getRemainingSeconds(buildingAction);
       acc[key].hasAction = true;
+      if (
+        acc[key].remainingSeconds === null ||
+        remainingSeconds < acc[key].remainingSeconds
+      ) {
+        acc[key].remainingSeconds = remainingSeconds;
+      }
     }
 
     return acc;
@@ -1501,27 +2060,48 @@ function buildGroupedBuildingsRowsBySettlement() {
   const rows = Object.values(groupedByDefinition)
     .sort((a, b) => String(a.label).localeCompare(String(b.label)))
     .map((group) => {
-      const levelLabel = group.minLevel === group.maxLevel
-        ? `Niv. ${group.minLevel}`
-        : `Niv. ${group.minLevel} à ${group.maxLevel}`;
+      const levelLabel =
+        group.minLevel === group.maxLevel
+          ? `Niv. ${group.minLevel}`
+          : `Niv. ${group.minLevel} à ${group.maxLevel}`;
+
+      const iconSrc = chrome.runtime.getURL(`images/${group.definitionId}.webp`);
+      const iconAlt = escapeHtml(group.label);
 
       return `
         <tr>
           <td>
             <div class="calcium-building-cell">
               <div>
-                ${group.hasAction
-                  ? '<span class="calcium-building-indicator" title="Au moins un bâtiment de ce type est en construction"></span>'
-                  : '<span class="calcium-building-indicator is-idle"></span>'}
-                <span class="calcium-building-name">${escapeHtml(group.label)}</span>
+                <span
+                  class="calcium-building-indicator ${group.hasAction ? '' : 'is-idle'}"
+                  ${group.hasAction ? 'title="Au moins un bâtiment de ce type est en construction"' : ''}
+                ></span>
+                <span class="calcium-building-name">
+                  <img
+                    src="${iconSrc}"
+                    alt="${iconAlt}"
+                    title="${iconAlt}"
+                    class="calcium-resource-icon"
+                  >
+                </span>
                 <span class="calcium-building-meta">${escapeHtml(levelLabel)}</span>
               </div>
             </div>
           </td>
           <td>
-            ${group.hasAction
-              ? '<span class="calcium-building-group-status is-active">En construction</span>'
-              : '<span class="calcium-building-group-status">Stable</span>'}
+            ${
+              group.hasAction && group.remainingSeconds != null
+                ? `
+                  <span
+                    class="calcium-building-group-status is-active"
+                    data-building-remaining-seconds="${group.remainingSeconds}"
+                  >
+                    ${escapeHtml(formatDuration(group.remainingSeconds))}
+                  </span>
+                `
+                : ``
+            }
           </td>
         </tr>
       `;
@@ -1531,44 +2111,6 @@ function buildGroupedBuildingsRowsBySettlement() {
   return rows;
 }
 
-function buildTroopActionsSummary() {
-  const actions = [...(UI_STATE.snapshot?.derived?.troopActions || [])]
-    .filter(action => !action.finished)
-    .sort((a, b) => getRemainingSeconds(a) - getRemainingSeconds(b));
-
-  if (!actions.length) {
-    return `<div class="calcium-actions-empty">Rien dans la file d'attente</div>`;
-  }
-
-  return `
-    <div class="calcium-actions-list">
-      ${actions.map(action => {
-        const troopP = (UI_STATE.snapshot?.calcium?.Data?.Player?.troop || []).find(
-          b => b.uuid === String(action.metadata?.troop_uuid)
-        );
-        const troopName = getLabelTrans(troopP?.definitionId, 'troop') || 'Troupe inconnue';
-        const remaining = formatDuration(getRemainingSeconds(action));
-
-        return `
-          <div class="calcium-action-item" data-action-uuid="${escapeHtml(action.uuid)}">
-            <div class="calcium-action-main">
-              <span class="calcium-action-badge"></span>
-              <span class="calcium-action-title">${escapeHtml(troopName)} x${escapeHtml(formatValue(action.metadata?.amount, '0'))}</span>
-              <span
-                class="calcium-action-timer"
-                data-end-at="${escapeHtml(formatValue(action.endAt, ''))}"
-                data-finished="${String(!!action.finished)}"
-                data-remaining-time="${Number(action.remainingTime || 0)}"
-              >
-                ${escapeHtml(remaining)}
-              </span>
-            </div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-}
 
 function renderPlayerBuildingsTab() {
   return `
@@ -1576,7 +2118,6 @@ function renderPlayerBuildingsTab() {
       <div class="calcium-player-subtitle">Actions de bâtiments</div>
       ${buildBuildingActionsSummary()}
     </div>
-
     <div class="calcium-player-section">
       <div class="calcium-player-subtitle">Bâtiments par cité</div>
       ${buildBuildingSettlementTabs()}
@@ -1595,6 +2136,237 @@ function renderPlayerBuildingsTab() {
       </div>
     </div>
   `;
+}
+
+function bindBuildingsTabEvents(panel, renderPlayerPanel) {
+  rerenderBuildingsPlayerPanel = renderPlayerPanel;
+
+  panel.querySelectorAll('[data-building-settlement]').forEach((button) => {
+    button.addEventListener('click', () => {
+      setActiveBuildingSettlement(button.dataset.buildingSettlement);
+    });
+  });
+
+  bindBuildingAccelerationButtons(panel);
+}
+
+
+
+/* ===== MODULE: src/sidepanel/player-tab-research.js ===== */
+
+let rerenderResearchPlayerPanel = null;
+
+function buildSearchRows() {
+  const playerSearch = UI_STATE.snapshot?.calcium?.Data?.Player?.search || [];
+
+  return playerSearch.map(search => {
+    const displayLabel = getLabelTrans(search.definitionId, 'research');
+    const levelRange = search.level;
+
+    return `
+      <tr>
+        <td>
+          <div class="calcium-building-cell">
+            <div>
+              ${
+                search.status === 'searching'
+                  ? `<span class="calcium-building-indicator" title="Recherche en cours"></span>`
+                  : `<span class="calcium-building-indicator is-idle"></span>`
+              }
+              <span class="calcium-building-name">${escapeHtml(displayLabel)}</span>
+              <span class="calcium-building-meta">${escapeHtml(levelRange)}</span>
+            </div>
+          </div>
+        </td>
+        <td>
+          ${
+            search.status === 'searching'
+              ? `<span class="calcium-building-group-status is-active">En recherche</span>`
+              : `<span class="calcium-building-group-status">Stable</span>`
+          }
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function getAvailableResearchAccelerationItems(calcium) {
+  const itemDefinitions = Array.isArray(calcium?.Data?.Item)
+    ? calcium.Data.Item
+    : [];
+
+  const playerItems = Array.isArray(calcium?.Data?.Player?.items)
+    ? calcium.Data.Player.items
+    : [];
+
+  const playerItemsByDefinitionId = Object.fromEntries(
+    playerItems
+      .filter((item) => item?.definitionId && Number(item?.count ?? 0) > 0)
+      .map((item) => [item.definitionId, item])
+  );
+
+  return itemDefinitions
+    .filter((itemDef) => {
+      const playerItem = playerItemsByDefinitionId[itemDef?.id];
+      const contexts = Array.isArray(itemDef?.contexts) ? itemDef.contexts : [];
+      const reductionSeconds = getItemActionReductionSeconds(itemDef);
+
+      return !!playerItem
+        && itemDef?.category === 'acceleration'
+        && itemDef?.usable === true
+        && itemDef?.targetable === true
+        && contexts.includes('research')
+        && reductionSeconds > 0;
+    })
+    .map((itemDef) => ({
+      itemDef,
+      playerItem: playerItemsByDefinitionId[itemDef.id]
+    }))
+    .sort((a, b) => {
+      const aSeconds = getItemActionReductionSeconds(a.itemDef);
+      const bSeconds = getItemActionReductionSeconds(b.itemDef);
+      return aSeconds - bSeconds;
+    });
+}
+
+function buildAccelerationResearchButtons(action, calcium) {
+  const items = getAvailableResearchAccelerationItems(calcium);
+  if (!items.length) return '';
+
+  return `
+    <div class="calcium-accel-buttons">
+      ${items.map(({ itemDef, playerItem }) => {
+        const seconds = getItemActionReductionSeconds(itemDef);
+        const label = formatDurationShort(seconds);
+        const stock = Number(playerItem?.count ?? 0);
+        const itemLabel = getLabelTrans(itemDef?.id, 'item') || itemDef?.id || 'Item';
+
+        return `
+          <button
+            type="button"
+            class="calcium-accel-btn calcium-research-accel-btn"
+            data-item-uuid="${escapeHtml(playerItem.uuid || '')}"
+            data-action-uuid="${escapeHtml(action.uuid || '')}"
+            data-reduction-seconds="${seconds}"
+            title="${escapeHtml(`${itemLabel} • stock ${stock}`)}"
+          >
+            ${escapeHtml(label)}
+          </button>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function buildSearchActionsSummary() {
+  const calcium = UI_STATE.snapshot?.calcium || null;
+  const actions = [...(UI_STATE.snapshot?.derived?.searchActions || [])]
+    .filter(action => !action.finished)
+    .sort((a, b) => getRemainingSeconds(a) - getRemainingSeconds(b));
+
+  if (!actions.length) {
+    return `<div class="calcium-actions-empty">Aucune action de recherche en cours</div>`;
+  }
+
+  return `
+    <div class="calcium-actions-list calcium-research-actions-list">
+      ${actions.map(action => {
+        const searchUuid = action.metadata?.research_uuid;
+        const searchP = (UI_STATE.snapshot?.calcium?.Data?.Player?.search || []).find(
+          search => search.uuid === String(searchUuid)
+        );
+
+        const definitionId = action.metadata?.definitionId || searchP?.definitionId;
+        const searchName = getLabelTrans(definitionId, 'research') || 'Recherche inconnue';
+        const remainingSeconds = getRemainingSeconds(action);
+        const remaining = formatDuration(remainingSeconds);
+
+        const currentLevel = Number(
+          action.metadata?.currentLevel ??
+          searchP?.level ??
+          0
+        );
+
+        const targetLevel = Number(
+          action.metadata?.targetLevel ??
+          (currentLevel + 1)
+        );
+
+        return `
+          <div class="calcium-action-item calcium-research-action-item" data-action-uuid="${escapeHtml(action.uuid)}">
+            <div class="calcium-action-main">
+              <span class="calcium-action-badge"></span>
+              <span class="calcium-action-title">
+                ${escapeHtml(searchName)} ${currentLevel} -> ${targetLevel}
+              </span>
+              <span
+                class="calcium-action-timer"
+                data-end-at="${escapeHtml(formatValue(action.endAt, ''))}"
+                data-finished="${String(!!action.finished)}"
+                data-remaining-time="${Number(action.remainingTime || 0)}"
+              >
+                ${escapeHtml(remaining)}
+              </span>
+            </div>
+
+            ${calcium ? buildAccelerationResearchButtons(action, calcium) : ''}
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function bindResearchAccelerationButtons(scope = document) {
+  const container = scope.querySelector('.calcium-research-actions-list');
+  if (!container || container.dataset.researchAccelBound === 'true') return;
+
+  container.dataset.researchAccelBound = 'true';
+
+  container.addEventListener('click', async (event) => {
+    const btn = event.target.closest('.calcium-research-accel-btn');
+    if (!btn) return;
+
+    const itemUuid = btn.dataset.itemUuid;
+    const actionUuid = btn.dataset.actionUuid;
+    const reductionSeconds = Number(btn.dataset.reductionSeconds || 0);
+
+    if (!itemUuid || !actionUuid) return;
+
+    btn.disabled = true;
+    const previousText = btn.textContent;
+    btn.textContent = '...';
+
+    try {
+      const response = await usePlayerItem(itemUuid, {
+        count: 1,
+        target: {
+          type: 'action',
+          value: actionUuid
+        }
+      });
+
+      if (!response?.ok) {
+        btn.textContent = 'Err';
+        return;
+      }
+
+      applyOptimisticInventoryConsumption(itemUuid, 1);
+      applyOptimisticActionAcceleration(actionUuid, reductionSeconds);
+
+      rerenderResearchPlayerPanel?.();
+    } catch (error) {
+      console.error('[Calcium][research-accel] KO', error);
+      btn.textContent = 'Err';
+    } finally {
+      window.setTimeout(() => {
+        btn.disabled = false;
+        if (btn.isConnected) {
+          btn.textContent = previousText;
+        }
+      }, 250);
+    }
+  });
 }
 
 function renderPlayerSearchTab() {
@@ -1623,9 +2395,17 @@ function renderPlayerSearchTab() {
   `;
 }
 
+function bindResearchTabEvents(panel, renderPlayerPanel) {
+  rerenderResearchPlayerPanel = renderPlayerPanel;
+  bindResearchAccelerationButtons(panel);
+}
+
+
+
+/* ===== MODULE: src/sidepanel/player-tab-quests.js ===== */
+
 function getQuestDefinitions() {
   const calcium = UI_STATE.snapshot?.calcium?.Data || {};
-
   return (
     calcium.QuestDefinitions ||
     calcium.QuestsDefinitions ||
@@ -1635,10 +2415,10 @@ function getQuestDefinitions() {
   );
 }
 
+
 function getPlayerQuests() {
   const calcium = UI_STATE.snapshot?.calcium?.Data || {};
   const player = calcium.Player || {};
-
   return (
     player.quests ||
     player.Quests ||
@@ -1648,33 +2428,32 @@ function getPlayerQuests() {
   );
 }
 
+
 function getQuestLabel(definitionId, definition) {
   if (definition?.name) return String(definition.name);
   return String(definitionId || 'Quête inconnue');
 }
 
+
 function getQuestDisplayStatus(quest) {
   if (quest?.status === 'completed' && quest?.claimed === false) {
     return { label: 'À réclamer', tone: 'claimable' };
   }
-
   if (quest?.status === 'completed' && quest?.claimed === true) {
     return { label: 'Réclamée', tone: 'claimed' };
   }
-
   return { label: 'En cours', tone: 'progress' };
 }
+
 
 function formatQuestReward(reward) {
   if (!reward || typeof reward !== 'object') return '-';
 
   const parts = [];
-
   if (reward.resources && typeof reward.resources === 'object') {
     const resourceText = Object.entries(reward.resources)
       .map(([key, value]) => `${key}: ${formatCompactNumber(value)}`)
       .join(', ');
-
     if (resourceText) parts.push(resourceText);
   }
 
@@ -1682,23 +2461,21 @@ function formatQuestReward(reward) {
     const questText = Object.entries(reward.quests)
       .map(([key, value]) => `${key} → ${value}`)
       .join(', ');
-
     if (questText) parts.push(`Quête: ${questText}`);
   }
 
   return parts.join(' • ') || '-';
 }
 
+
 function formatQuestRequirements(requirements) {
   if (!requirements || typeof requirements !== 'object') return '-';
 
   const parts = [];
-
   if (requirements.buildings && typeof requirements.buildings === 'object') {
     const buildingsText = Object.entries(requirements.buildings)
       .map(([key, value]) => `${key} ${value}`)
       .join(', ');
-
     if (buildingsText) parts.push(`Bâtiments: ${buildingsText}`);
   }
 
@@ -1706,17 +2483,16 @@ function formatQuestRequirements(requirements) {
     const questsText = Object.entries(requirements.quests)
       .map(([key, value]) => `${key} ${value}`)
       .join(', ');
-
     if (questsText) parts.push(`Quêtes: ${questsText}`);
   }
 
   return parts.join(' • ') || '-';
 }
 
+
 function getEnrichedPlayerQuests() {
   const definitions = getQuestDefinitions();
   const playerQuests = getPlayerQuests();
-
   const definitionById = new Map(
     definitions.map((def) => [String(def?.id || ''), def])
   );
@@ -1727,7 +2503,6 @@ function getEnrichedPlayerQuests() {
     const level = Number(quest?.level || 0);
     const nextLevel = level + 1;
     const displayStatus = getQuestDisplayStatus(quest);
-
     const currentReward = definition?.rewards?.[String(level)] || null;
     const nextRequirements = definition?.requirements?.[String(nextLevel)] || null;
 
@@ -1745,25 +2520,22 @@ function getEnrichedPlayerQuests() {
   });
 }
 
+
 function buildQuestInfoButton(quest) {
   const lines = [];
 
   if (quest?.nextRequirements) {
     lines.push(`Prochain requis : ${quest.requirementsText || '-'}`);
   }
-
   if (quest?.currentReward) {
     lines.push(`Récompense : ${formatQuestReward(quest.currentReward)}`);
   }
-
   if (quest?.finishedAt) {
     lines.push(`Terminée : ${formatValue(quest.finishedAt)}`);
   }
-
   if (quest?.claimedAt) {
     lines.push(`Réclamée : ${formatValue(quest.claimedAt)}`);
   }
-
   if (quest?.scheduledQuest === true) {
     lines.push('Quête planifiée : oui');
   }
@@ -1786,6 +2558,7 @@ function buildQuestInfoButton(quest) {
   `;
 }
 
+
 function getGroupedPlayerQuests() {
   const quests = getEnrichedPlayerQuests();
   const groups = new Map();
@@ -1804,7 +2577,6 @@ function getGroupedPlayerQuests() {
           if (quest?.status === 'in_progress') return 1;
           return 2;
         };
-
         return score(a) - score(b) || String(a.label || '').localeCompare(String(b.label || ''));
       });
 
@@ -1823,10 +2595,10 @@ function getGroupedPlayerQuests() {
         if (group.inProgress > 0) return 1;
         return 2;
       };
-
       return score(a) - score(b) || a.label.localeCompare(b.label);
     });
 }
+
 
 function renderPlayerQuestsTab() {
   const groups = getGroupedPlayerQuests();
@@ -1840,6 +2612,7 @@ function renderPlayerQuestsTab() {
     </div>
   `;
 }
+
 
 function buildQuestGroupsAccordion(groups) {
   if (!groups.length) {
@@ -1855,7 +2628,6 @@ function buildQuestGroupsAccordion(groups) {
           ${group.claimable ? ` · ${escapeHtml(String(group.claimable))} à réclamer` : ''}
         </span>
       </summary>
-
       <div class="calcium-quest-group-content">
         <div class="calcium-table-wrap">
           <table class="calcium-table">
@@ -1877,6 +2649,7 @@ function buildQuestGroupsAccordion(groups) {
   `).join('');
 }
 
+
 function buildQuestGroupRows(items) {
   return items.map((quest) => `
     <tr>
@@ -1892,6 +2665,10 @@ function buildQuestGroupRows(items) {
   `).join('');
 }
 
+
+
+/* ===== MODULE: src/sidepanel/player-tab.js ===== */
+
 function renderPlayerPanel() {
   const panel = document.getElementById('calcium-player-panel');
   const calcium = UI_STATE.snapshot?.calcium;
@@ -1899,10 +2676,15 @@ function renderPlayerPanel() {
   if (!panel) return;
 
   if (!calcium) {
+    stopBuildingTabRefresh();
+
     panel.innerHTML = `
-      <div class="calcium-player-title">Joueur</div>
-      <div class="calcium-player-text">En attente du parsing du dataset...</div>
+      <div class="calcium-player-panel">
+        <div class="calcium-player-title">Joueur</div>
+        <div class="calcium-player-text">En attente du parsing du dataset...</div>
+      </div>
     `;
+
     return;
   }
 
@@ -1920,6 +2702,8 @@ function renderPlayerPanel() {
     content = renderPlayerQuestsTab();
   }
 
+  syncBuildingTabRefresh();
+
   panel.innerHTML = `
     ${buildPlayerHero()}
     ${content}
@@ -1931,19 +2715,14 @@ function renderPlayerPanel() {
     });
   });
 
-  panel.querySelectorAll('.calcium-item-subtab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      setActiveItemCategory(tab.dataset.itemCategory);
-    });
-  });
+  if (UI_STATE.activePlayerSubTab === 'general') {
+    bindGeneralTabEvents(panel, renderPlayerPanel);
+  } else if (UI_STATE.activePlayerSubTab === 'batiments') {
+    bindBuildingsTabEvents(panel, renderPlayerPanel);
+  }  else if (UI_STATE.activePlayerSubTab === 'recherche') {
+    bindResearchTabEvents(panel, renderPlayerPanel);
+  }
 
-  panel.querySelectorAll('[data-building-settlement]').forEach((button) => {
-    button.addEventListener('click', () => {
-      setActiveBuildingSettlement(button.dataset.buildingSettlement);
-    });
-  });
-
-  bindItemActions(panel);
 }
 
 
@@ -2134,9 +2913,7 @@ function renderAllianceMembersTable(alliance) {
           <div class="calcium-building-cell">
             <div class="calcium-alliance-member-main">
               <div class="calcium-alliance-member-head">
-                <span class="calcium-building-name">${username}</span>
-
-                <button
+              <button
                   type="button"
                   class="calcium-info-trigger"
                   aria-label="Informations sur ${username}"
@@ -2148,6 +2925,8 @@ function renderAllianceMembersTable(alliance) {
                 >
                   i
                 </button>
+
+              <span class="calcium-building-name">${username}</span>
               </div>
             </div>
           </div>
@@ -2416,6 +3195,12 @@ function init() {
   setActiveMainTab(UI_STATE.activeMainTab || 'joueur');
   setActivePlayerSubTab(UI_STATE.activePlayerSubTab || 'general');
   loadState();
+
+  if (!window.__calciumTooltipsInit) {
+    initGlobalTooltips();
+    window.__calciumTooltipsInit = true;
+  }
+
 }
 
 if (document.readyState === 'loading') {

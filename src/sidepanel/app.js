@@ -4,7 +4,7 @@ import {
   setSearchText, refreshToken, renderMainTabs, setActiveMainTab, setActivePlayerSubTab,
   rebuildCategoryOptions, refreshSelectedDataView
 } from './core.js';
-import { renderPlayerPanel } from './player-tab.js';
+import { renderPlayerPanel, initGlobalTooltips } from './player-tab.js';
 import { renderAlliancePanel, renderCalciumPanel } from './calcium-tab.js';
 
 function refreshCountdownElements() {
@@ -107,6 +107,12 @@ function init() {
   setActiveMainTab(UI_STATE.activeMainTab || 'joueur');
   setActivePlayerSubTab(UI_STATE.activePlayerSubTab || 'general');
   loadState();
+
+  if (!window.__calciumTooltipsInit) {
+    initGlobalTooltips();
+    window.__calciumTooltipsInit = true;
+  }
+
 }
 
 if (document.readyState === 'loading') {

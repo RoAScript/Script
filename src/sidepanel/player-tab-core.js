@@ -27,14 +27,56 @@ async function requestCalciumApi(path, {
 
 function initGlobalTooltips() {
   const tooltip = document.createElement('div');
+
   tooltip.className = 'calcium-global-tooltip';
   document.body.appendChild(tooltip);
 
+  function hideTooltip() {
+    const owner = document.querySelector('[data-original-title]');
+
+    if (owner?.dataset?.originalTitle) {
+      owner.setAttribute('title', owner.dataset.originalTitle);
+      delete owner.dataset.originalTitle;
+    }
+
+    tooltip.textContent = '';
+    tooltip.style.opacity = '0';
+  }
+
+  function positionTooltip(event) {
+    const spacing = 12;
+    const viewportPadding = 8;
+
+    tooltip.style.left = '0px';
+    tooltip.style.top = '0px';
+
+    const rect = tooltip.getBoundingClientRect();
+
+    let left = event.clientX + spacing;
+    let top = event.clientY + spacing;
+
+    if (left + rect.width > window.innerWidth - viewportPadding) {
+      left = event.clientX - rect.width - spacing;
+    }
+
+    if (top + rect.height > window.innerHeight - viewportPadding) {
+      top = event.clientY - rect.height - spacing;
+    }
+
+    left = Math.max(viewportPadding, left);
+    top = Math.max(viewportPadding, top);
+
+    tooltip.style.left = `${Math.round(left)}px`;
+    tooltip.style.top = `${Math.round(top)}px`;
+  }
+
   document.addEventListener('mouseover', (event) => {
     const el = event.target.closest('[title]');
+
     if (!el) return;
 
     const text = el.getAttribute('title');
+
     if (!text) return;
 
     el.dataset.originalTitle = text;
@@ -42,22 +84,29 @@ function initGlobalTooltips() {
 
     tooltip.textContent = text;
     tooltip.style.opacity = '1';
+
+    positionTooltip(event);
   });
 
   document.addEventListener('mousemove', (event) => {
-    tooltip.style.left = `${event.pageX + 10}px`;
-    tooltip.style.top = `${event.pageY + 10}px`;
+    if (tooltip.style.opacity !== '1') return;
+
+    positionTooltip(event);
   });
 
   document.addEventListener('mouseout', (event) => {
     const el = event.target.closest('[data-original-title]');
+
     if (!el) return;
 
     el.setAttribute('title', el.dataset.originalTitle);
     delete el.dataset.originalTitle;
 
+    tooltip.textContent = '';
     tooltip.style.opacity = '0';
   });
+
+  document.addEventListener('scroll', hideTooltip, true);
 }
 
 async function usePlayerItem(itemUuid, options = {}) {
@@ -97,7 +146,12 @@ function updateBuildingTimersOnly() {
     const next = Math.max(0, current - 1);
 
     node.dataset.buildingRemainingSeconds = String(next);
-    node.textContent = formatDuration(next);
+    if (node.dataset.buildingTimerFormat === 'compact') {
+      node.textContent = formatDurationCompact(next);
+      node.title = formatDuration(next);
+    } else {
+      node.textContent = formatDuration(next);
+    }
 
     if (next <= 0) {
       node.classList.remove('is-active');
@@ -215,6 +269,31 @@ function applyOptimisticActionAcceleration(actionUuid, reductionSeconds) {
   });
 }
 
+function formatDurationCompact(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds || 0)));
+
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+
+  const pad = (value) => String(value).padStart(2, '0');
+
+  if (days > 0) {
+    return `${days}j ${pad(hours)}h`;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${pad(minutes)}m`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${pad(secs)}s`;
+  }
+
+  return `${secs}s`;
+}
+
 export {
   UI_STATE,
   escapeHtml,
@@ -234,5 +313,6 @@ export {
   getItemActionReductionSeconds,
   formatDurationShort,
   applyOptimisticInventoryConsumption,
-  applyOptimisticActionAcceleration
+  applyOptimisticActionAcceleration,
+  formatDurationCompact
 };

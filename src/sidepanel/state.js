@@ -1,4 +1,5 @@
 const CONFIGURATION_STORAGE_KEY = 'calcium.configuration.v1';
+const AUTOMATION_TRACE_STORAGE_KEY = 'calcium.building.automation.trace.v1';
 
 const DEFAULT_UI_CONFIG = {
   showResources: {
@@ -20,8 +21,15 @@ const DEFAULT_UI_CONFIG = {
   showDataTab: false,
   showAllianceTab: true,
   showCalciumTab: false,
-  showQuestClaimed: true
+  showQuestClaimed: true,
+  buildingAutomation: {
+    enabled: false,
+    scanIntervalSeconds: 10,
+    targets: {}
+  }
 };
+
+let AUTOMATION_TRACE = [];
 
 const UI_CONFIG = cloneConfiguration(DEFAULT_UI_CONFIG);
 
@@ -35,6 +43,7 @@ const UI_STATE = {
   showDataTab: DEFAULT_UI_CONFIG.showDataTab,
   showAllianceTab: DEFAULT_UI_CONFIG.showAllianceTab,
   showCalciumTab: DEFAULT_UI_CONFIG.showCalciumTab,
+  buildingAutomation: cloneConfiguration(DEFAULT_UI_CONFIG.buildingAutomation),
   snapshot: null,
   countdownInterval: null,
   port: null
@@ -51,6 +60,14 @@ function mergeConfiguration(savedConfiguration = {}) {
     showResources: {
       ...cloneConfiguration(DEFAULT_UI_CONFIG.showResources),
       ...(savedConfiguration?.showResources || {})
+    },
+    buildingAutomation: {
+      ...cloneConfiguration(DEFAULT_UI_CONFIG.buildingAutomation),
+      ...(savedConfiguration?.buildingAutomation || {}),
+      targets: {
+        ...cloneConfiguration(DEFAULT_UI_CONFIG.buildingAutomation.targets),
+        ...(savedConfiguration?.buildingAutomation?.targets || {})
+      }
     }
   };
 }
@@ -62,6 +79,9 @@ function applyConfiguration(config) {
   UI_STATE.showAllianceTab = config.showAllianceTab !== false;
   UI_STATE.showCalciumTab = config.showCalciumTab !== false;
   UI_STATE.showQuestClaimed = config.showQuestClaimed !== false;
+  UI_STATE.buildingAutomation = cloneConfiguration(
+    config.buildingAutomation || DEFAULT_UI_CONFIG.buildingAutomation
+  );
 
   Object.keys(UI_CONFIG).forEach((key) => {
     delete UI_CONFIG[key];
@@ -144,6 +164,43 @@ function syncStaticUiVisibility() {
   }
 }
 
+
+function getAutomationTrace() {
+  return [...AUTOMATION_TRACE];
+}
+
+async function pushAutomationTrace(entry) {
+  const traceEntry = {
+    id: `trace-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    at: new Date().toISOString(),
+    ...entry
+  };
+
+  AUTOMATION_TRACE.push(traceEntry);
+
+  // garde seulement les 200 derniers
+  if (AUTOMATION_TRACE.length > 200) {
+    AUTOMATION_TRACE = AUTOMATION_TRACE.slice(-200);
+  }
+
+  try {
+    await chrome.storage.local.set({
+      [AUTOMATION_TRACE_STORAGE_KEY]: AUTOMATION_TRACE
+    });
+  } catch (e) {
+    console.warn('[automation-trace] persist KO', e);
+  }
+}
+
+async function loadAutomationTrace() {
+  try {
+    const result = await chrome.storage.local.get(AUTOMATION_TRACE_STORAGE_KEY);
+    AUTOMATION_TRACE = result?.[AUTOMATION_TRACE_STORAGE_KEY] || [];
+  } catch {
+    AUTOMATION_TRACE = [];
+  }
+}
+
 export {
   UI_STATE,
   DEFAULT_UI_CONFIG,
@@ -152,5 +209,8 @@ export {
   savePersistentConfiguration,
   resetPersistentConfiguration,
   getMainTabs,
-  syncStaticUiVisibility
+  syncStaticUiVisibility,
+  getAutomationTrace,
+  pushAutomationTrace,
+  loadAutomationTrace
 };

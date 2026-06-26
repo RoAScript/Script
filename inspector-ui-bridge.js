@@ -83,7 +83,6 @@
           });
         }
 
-
         return { ok: false, error: 'UNKNOWN_MESSAGE' };
       })
       .then((response) => sendResponse(response))

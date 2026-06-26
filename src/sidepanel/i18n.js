@@ -127,9 +127,11 @@ export const CalciumI18n = {
       harvest_nano_1d: "Récolte nano 1jr",
       metals_nano_1d: "Métal nano 1jr",
       stone_nano_1d: "Pierre nano 1jr",
+      forest_nano_1d: "Bois nano 1jr",
       locust_curse_1d: "Maléd. nourriture 1jr",
       frog_curse_1d: "Maléd. pierre 1jr",
       worm_curse_1d: "Maléd bois 1jr",
+      bat_curse_1d: "Maléd métal 1jr",
       mass_nullifier: "Destructeur",
       purple_bones: "Os violet",
       resource_chest_250k: "Coffre ressource 250k",
@@ -168,7 +170,17 @@ export const CalciumI18n = {
       glowing_mandrake_pack_10k: "Pack mandragore 10k",
       elixir_pack_250k: "Pack elixir 250k",
       all_resources_pack_5m: "Pack toutes ressrouces 5M",
-      completion_grant: "Permis de construire"
+      completion_grant: "Permis de construire",
+      blood_seal: "Sceau de sang",
+      infernal_ash: "Cendres infernales",
+      blackened_sealwax: "Cire noire à sceau",
+      broken_rune_shard: "Éclat de rune brisée",
+      cracked_demon_horn: "Corne de démon fissurée",
+      dormant_ember: "Braise dormante",
+      lost_soul_fragment: "Fragment d'âme perdu",
+      veiled_blood_mark: "Marque de sang voilée",
+      drowned_bell: "Cloche engloutie",
+      cursed_blood_drop: "Goutte de sang maudite"
     }
   }
 };

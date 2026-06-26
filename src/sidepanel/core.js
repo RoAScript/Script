@@ -24,19 +24,37 @@ function formatValue(value, fallback = '—') {
 
 function formatDuration(seconds) {
   const total = Math.max(0, Math.floor(Number(seconds || 0)));
+
   const days = Math.floor(total / 86400);
   const hours = Math.floor((total % 86400) / 3600);
   const minutes = Math.floor((total % 3600) / 60);
   const secs = total % 60;
 
-  const parts = [];
+  const values = [
+    { value: days, label: "jr" },
+    { value: hours, label: "h" },
+    { value: minutes, label: "min" },
+    { value: secs, label: "s" }
+  ];
 
-  if (days > 0) parts.push(`${days} jr`);
-  if (hours > 0) parts.push(`${hours} hr`);
-  if (minutes > 0) parts.push(`${minutes} min`);
-  if (secs > 0 || parts.length === 0) parts.push(`${secs} s`);
+  // Trouve le premier élément non nul
+  const firstIndex = values.findIndex(v => v.value > 0);
 
-  return parts.join(' ');
+  // Si tout est à 0 → afficher 0s
+  if (firstIndex === -1) {
+    return "0s";
+  }
+
+  return values
+    .slice(firstIndex)
+    .map((v, i) => {
+      const val = i === 0
+        ? v.value               // premier : pas de padding
+        : String(v.value).padStart(2, '0'); // suivants : padding
+
+      return `${val}${v.label}`;
+    })
+    .join(" ");
 }
 
 function formatCompactNumber(value, decimals = 1) {

@@ -10,6 +10,7 @@ const moduleOrder = [
   'src/sidepanel/player-tab-core.js',
   'src/sidepanel/player-tab-general.js',
   'src/sidepanel/player-tab-troops.js',
+  'src/sidepanel/building-prerequisites-core.js',
   'src/sidepanel/player-tab-buildings.js',
   'src/sidepanel/player-tab-research.js',
   'src/sidepanel/player-tab-quests.js',

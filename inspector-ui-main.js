@@ -55,10 +55,19 @@
   const REQUEST_SOURCE = 'CALCIUM_BRIDGE_REQUEST';
   const RESPONSE_SOURCE = 'CALCIUM_BRIDGE_RESPONSE';
   const PUSH_SOURCE = 'CALCIUM_BRIDGE_PUSH';
+  const CONFIGURATION_STORAGE_KEY = 'calcium.configuration.v1';
 
   let lastPublishedSignature = null;
   let actionsWatcherIntervalId = null;
   let appliedCompletedActionUuids = new Set();
+  let appliedCompletedActionBusinessKeys = new Set();
+  let forcedBuildingLevelsByUuid = new Map();
+  let derivedBuildingActions = [];
+
+  function isPageReload() {
+    const nav = performance.getEntriesByType('navigation');
+    return nav.length && nav[0].type === 'reload';
+  }
 
   function safePostMessage(payload) {
     window.postMessage(payload, window.location.origin);
@@ -182,24 +191,49 @@
     Calcium.Data.Player.tax = playerData?.tax || 0;
   }
 
+  function normalizeFiniteNumber(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
   function initBuildingData() {
     const categoryDefKey = `api.definitions.building`;
     const rawDefCategory = STATE.dataByCategory[categoryDefKey];
     const defData = rawDefCategory?.[0]?.member ?? [];
     Calcium.Data.Buildings = defData;
 
-    const buildingsData = STATE.dataByCategory[`api.players.${Calcium.guid.player}.buildings`]?.[0]?.member || [];
+    const buildingsData =
+      STATE.dataByCategory[`api.players.${Calcium.guid.player}.buildings`]?.[0]?.member || [];
 
     const existingBuildingsByUuid = Object.fromEntries(
-      (Calcium.Data.Player.building || []).map(building => [building.uuid, building])
+      (Calcium.Data.Player.building || []).map(building => [String(building.uuid || ''), building])
     );
 
     Calcium.Data.Player.building = buildingsData.map(buildingData => {
-      const existing = existingBuildingsByUuid[buildingData.uuid];
+      const buildingUuid = String(buildingData.uuid || '');
+      const existing = existingBuildingsByUuid[buildingUuid];
+
+      const backendLevel = normalizeFiniteNumber(
+        buildingData.level,
+        normalizeFiniteNumber(existing?.level, 0)
+      );
+
+      const forcedLevel = forcedBuildingLevelsByUuid.get(buildingUuid);
+
+      const resolvedLevel = Number.isFinite(Number(forcedLevel))
+        ? Math.max(backendLevel, Number(forcedLevel))
+        : backendLevel;
+
+      if (
+        Number.isFinite(Number(forcedLevel)) &&
+        backendLevel >= Number(forcedLevel)
+      ) {
+        forcedBuildingLevelsByUuid.delete(buildingUuid);
+      }
 
       return {
         definitionId: buildingData.definitionId,
-        level: existing?.level ?? buildingData.level ?? 0,
+        level: resolvedLevel,
         plot: buildingData.plot,
         uuid: buildingData.uuid,
         settlement: buildingData.settlement,
@@ -212,34 +246,50 @@
   function initActionData() {
     const categoryKey = `api.players.${Calcium.guid.player}.actions`;
     const rawCategory = STATE.dataByCategory[categoryKey];
-    const actionsData = rawCategory?.[0]?.member ?? [];
 
-    const existingActionsByUuid = Object.fromEntries(
-      (Calcium.Data.Actions || []).map(action => [action.uuid, action])
-    );
+    const latestEntry = Array.isArray(rawCategory) && rawCategory.length
+      ? rawCategory[rawCategory.length - 1]
+      : null;
 
-    const derivedActions = (Calcium.Data.Actions || []).filter(
-      action => action?.metadata?.derived === true
-    );
+    const actionsData = latestEntry?.member ?? [];
+
+    // ✅ Actions serveur
+    const serverActions = actionsData.map(actionData => {
+      const endTimestamp = new Date(actionData.endAt).getTime();
+
+      const remainingTime = Number.isNaN(endTimestamp)
+        ? Math.max(0, Number(actionData.remainingTime ?? 0))
+        : Math.max(0, Math.floor((endTimestamp - Date.now()) / 1000));
+
+      return {
+        ...actionData,
+        finished: actionData.finished === true,
+        remainingTime,
+        calciumEntity: String(actionData.entity || '')
+          .split('\\')
+          .pop()
+          .toLowerCase()
+      };
+    });
+
+    // ✅ Actions dérivées persistantes (clé du fix)
+    const validDerivedActions = derivedBuildingActions.filter(action => {
+      if (!action) return false;
+
+      // supprimée uniquement si terminée
+      if (isActionAlreadyCompleted(action)) return false;
+
+      // supprimée uniquement si backend a une vraie action équivalente ACTIVE
+      const hasEquivalentServerAction = serverActions.some(server =>
+        !server.finished && actionsLookEquivalent(action, server)
+      );
+
+      return !hasEquivalentServerAction;
+    });
 
     Calcium.Data.Actions = [
-      ...actionsData
-        .filter(actionData => !appliedCompletedActionUuids.has(actionData.uuid))
-        .map(actionData => {
-          const existing = existingActionsByUuid[actionData.uuid];
-          const endTimestamp = new Date(actionData.endAt).getTime();
-          const remainingTime = Number.isNaN(endTimestamp)
-            ? Math.max(0, Number(actionData.remainingTime || existing?.remainingTime || 0))
-            : Math.max(0, Math.floor((endTimestamp - Date.now()) / 1000));
-
-          return {
-            ...actionData,
-            finished: existing?.finished ?? actionData.finished,
-            remainingTime,
-            calciumEntity: String(actionData.entity || '').split('\\').pop().toLowerCase()
-          };
-        }),
-      ...derivedActions.filter(action => !appliedCompletedActionUuids.has(action.uuid))
+      ...serverActions,
+      ...validDerivedActions
     ];
   }
 
@@ -268,25 +318,25 @@
     });
   }
 
-function initAllianceData() {
-  const categoryAllianceKey = `api.alliances.${Calcium.guid.alliance}`;
-  const categoryAllianceMembersKey = `api.alliances.${Calcium.guid.alliance}.members`;
+  function initAllianceData() {
+    const categoryAllianceKey = `api.alliances.${Calcium.guid.alliance}`;
+    const categoryAllianceMembersKey = `api.alliances.${Calcium.guid.alliance}.members`;
 
-  const rawAllianceCategory = STATE.dataByCategory[categoryAllianceKey];
-  const rawAllianceMembersCategory = STATE.dataByCategory[categoryAllianceMembersKey];
+    const rawAllianceCategory = STATE.dataByCategory[categoryAllianceKey];
+    const rawAllianceMembersCategory = STATE.dataByCategory[categoryAllianceMembersKey];
 
-  const allianceData = rawAllianceCategory?.[0] || null;
-  const detailedMembers = rawAllianceMembersCategory?.[0]?.member || [];
+    const allianceData = rawAllianceCategory?.[0] || null;
+    const detailedMembers = rawAllianceMembersCategory?.[0]?.member || [];
 
-  Calcium.Data.Alliance = allianceData
-    ? {
-        ...allianceData,
-        members: detailedMembers
-      }
-    : {
-        members: []
-      };
-}
+    Calcium.Data.Alliance = allianceData
+      ? {
+          ...allianceData,
+          members: detailedMembers
+        }
+      : {
+          members: []
+        };
+  }
 
   function initResourceData() {
     const categoryDefKey = `api.definitions.resource`;
@@ -376,6 +426,15 @@ function initAllianceData() {
         credentials: 'same-origin'
       });
 
+      // ✅ IMPORTANT : injecter immédiatement le bearer
+      if (data?.token) {
+        Calcium.bearer = data.token;
+
+        console.log('[Calcium][auth] Nouveau bearer injecté');
+      } else {
+        console.warn('[Calcium][auth] Pas de token dans la réponse refresh');
+      }
+
       return {
         ok: response.ok,
         message: response.ok ? 'Refresh OK' : `ERR ${response.status}`
@@ -387,6 +446,175 @@ function initAllianceData() {
         message: 'ERR'
       };
     }
+  }
+
+  function getActionMetadata(action) {
+    return action?.metadata || {};
+  }
+
+  function getActionEntityName(action) {
+    return String(action?.entity || action?.calciumEntity || '')
+      .split('\\')
+      .pop()
+      .toLowerCase();
+  }
+
+  function getActionBuildingUuid(action) {
+    const metadata = getActionMetadata(action);
+    return (
+      metadata.building_uuid ||
+      metadata.buildingUuid ||
+      null
+    );
+  }
+
+  function getActionResearchUuid(action) {
+    const metadata = getActionMetadata(action);
+    return (
+      metadata.research_uuid ||
+      metadata.researchUuid ||
+      null
+    );
+  }
+
+  function getActionTargetLevel(action) {
+    const metadata = getActionMetadata(action);
+    const value =
+      metadata.targetLevel ??
+      metadata.target_level ??
+      null;
+
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  /**
+   * Clés utilisées pour rapprocher une action locale dérivée
+   * avec une action réelle backend.
+   *
+   * Important :
+   * - on inclut une clé large building:<uuid> / research:<uuid>
+   *   pour détecter que le backend a créé une action équivalente
+   *   même si son UUID est différent et même s'il ne fournit pas targetLevel.
+   * - ces clés larges ne doivent PAS être utilisées comme clés de complétion,
+   *   sinon on bloquerait les upgrades suivants du même bâtiment.
+   */
+  function getActionMatchKeys(action) {
+    if (!action) return [];
+
+    const entity = getActionEntityName(action);
+    const targetLevel = getActionTargetLevel(action);
+    const keys = [];
+
+    if (entity.includes('building')) {
+      const buildingUuid = getActionBuildingUuid(action);
+      if (!buildingUuid) return keys;
+
+      keys.push(`building:${buildingUuid}`);
+
+      if (targetLevel !== null) {
+        keys.push(`building:${buildingUuid}:${targetLevel}`);
+      }
+
+      return keys;
+    }
+
+    if (entity.includes('research')) {
+      const researchUuid = getActionResearchUuid(action);
+      if (!researchUuid) return keys;
+
+      keys.push(`research:${researchUuid}`);
+
+      if (targetLevel !== null) {
+        keys.push(`research:${researchUuid}:${targetLevel}`);
+      }
+
+      return keys;
+    }
+
+    if (action.uuid) {
+      keys.push(`uuid:${action.uuid}`);
+    }
+
+    return keys;
+  }
+
+  /**
+   * Clés utilisées pour mémoriser qu'une action est terminée.
+   *
+   * Ici on évite volontairement les clés larges du type building:<uuid>,
+   * car un même bâtiment peut avoir plusieurs upgrades successifs.
+   */
+  function getActionCompletionKeys(action) {
+    if (!action) return [];
+
+    const entity = getActionEntityName(action);
+    const targetLevel = getActionTargetLevel(action);
+    const keys = [];
+
+    if (action.uuid) {
+      keys.push(`uuid:${action.uuid}`);
+    }
+
+    if (entity.includes('building')) {
+      const buildingUuid = getActionBuildingUuid(action);
+      if (buildingUuid && targetLevel !== null) {
+        keys.push(`building:${buildingUuid}:${targetLevel}`);
+      }
+    }
+
+    if (entity.includes('research')) {
+      const researchUuid = getActionResearchUuid(action);
+      if (researchUuid && targetLevel !== null) {
+        keys.push(`research:${researchUuid}:${targetLevel}`);
+      }
+    }
+
+    return keys;
+  }
+
+  function rememberCompletedAction(action) {
+    if (!action) return;
+
+    if (action.uuid) {
+      appliedCompletedActionUuids.add(action.uuid);
+    }
+
+    getActionCompletionKeys(action).forEach(key => {
+      appliedCompletedActionBusinessKeys.add(key);
+    });
+  }
+
+  function isActionAlreadyCompleted(action) {
+    if (!action) return false;
+
+    if (action.uuid && appliedCompletedActionUuids.has(action.uuid)) {
+      return true;
+    }
+
+    return getActionCompletionKeys(action).some(key =>
+      appliedCompletedActionBusinessKeys.has(key)
+    );
+  }
+
+  function actionsLookEquivalent(actionA, actionB) {
+    const keysA = getActionMatchKeys(actionA);
+    const keysB = new Set(getActionMatchKeys(actionB));
+
+    return keysA.some(key => keysB.has(key));
+  }
+
+  function hasEquivalentActiveAction(candidateAction) {
+    const actions = Calcium?.Data?.Actions || [];
+
+    return actions.some(action => {
+      if (!action || action.finished === true) return false;
+      return actionsLookEquivalent(action, candidateAction);
+    });
   }
 
   function markActionAsFinished(action) {
@@ -403,13 +631,33 @@ function initAllianceData() {
     if (!buildingUuid) return false;
 
     const building = (Calcium.Data.Player.building || []).find(
-      buildingItem => buildingItem?.uuid === buildingUuid
+      buildingItem => String(buildingItem?.uuid || '') === String(buildingUuid)
     );
 
     if (!building) return false;
 
-    building.level = Number(building.level || 0) + 1;
+    const currentLevel = normalizeFiniteNumber(building.level, 0);
+
+    const targetLevel = normalizeFiniteNumber(
+      action?.metadata?.targetLevel ?? action?.metadata?.target_level,
+      currentLevel + 1
+    );
+
+    const nextLevel = Math.max(currentLevel + 1, targetLevel);
+
+    building.level = nextLevel;
     building.status = 'stable';
+
+    forcedBuildingLevelsByUuid.set(String(buildingUuid), nextLevel);
+
+    console.log('[Calcium][building-completion] Niveau bâtiment forcé localement', {
+      buildingUuid,
+      completedActionUuid: action.uuid,
+      currentLevel,
+      targetLevel,
+      nextLevel
+    });
+
     return true;
   }
 
@@ -462,7 +710,10 @@ function initAllianceData() {
 
   function processFinishedActions() {
     const actions = Calcium.Data.Actions;
-    if (!Array.isArray(actions) || actions.length === 0) return false;
+
+    if (!Array.isArray(actions) || actions.length === 0) {
+      return false;
+    }
 
     const now = Date.now();
     const finishedActionUuids = [];
@@ -470,11 +721,24 @@ function initAllianceData() {
 
     actions.forEach(action => {
       if (!action) return;
-      if (appliedCompletedActionUuids.has(action.uuid)) return;
-      if (action.finished) return;
+
+      if (isActionAlreadyCompleted(action)) {
+        finishedActionUuids.push(action.uuid);
+        hasMutation = true;
+        return;
+      }
+
+      if (action.finished === true) {
+        rememberCompletedAction(action);
+        finishedActionUuids.push(action.uuid);
+        hasMutation = true;
+        return;
+      }
+
       if (!action.endAt) return;
 
       const endTimestamp = new Date(action.endAt).getTime();
+
       if (Number.isNaN(endTimestamp)) return;
 
       if (endTimestamp > now) {
@@ -482,18 +746,31 @@ function initAllianceData() {
         return;
       }
 
-      appliedCompletedActionUuids.add(action.uuid);
+      rememberCompletedAction(action);
       markActionAsFinished(action);
       applyActionCompletion(action);
+
       finishedActionUuids.push(action.uuid);
       hasMutation = true;
     });
 
-    if (!hasMutation) return false;
+    if (!hasMutation) {
+      return false;
+    }
 
-    Calcium.Data.Actions = actions.filter(
-      action => !finishedActionUuids.includes(action?.uuid)
-    );
+    Calcium.Data.Actions = actions.filter(action => {
+      if (!action) return false;
+
+      if (action.uuid && finishedActionUuids.includes(action.uuid)) {
+        return false;
+      }
+
+      return !isActionAlreadyCompleted(action);
+    });
+
+    derivedBuildingActions = derivedBuildingActions.filter(action => {
+      return !isActionAlreadyCompleted(action);
+    });
 
     return true;
   }
@@ -507,22 +784,58 @@ function initAllianceData() {
       }
 
       const buildingDefs = Calcium?.Data?.Buildings;
-      const actions = Calcium?.Data?.Actions;
       const playerBuildings = Calcium?.Data?.Player?.building || [];
       const playerResearches = Calcium?.Data?.Player?.search || [];
 
-      if (!Array.isArray(buildingDefs) || !Array.isArray(actions)) {
+      if (!Array.isArray(buildingDefs)) {
         console.warn('[Calcium][building-upgrade] Données Buildings/Actions indisponibles.');
         return false;
       }
-
+      
       const definitionId = String(upgrade.definitionId);
       const buildingUuid = String(upgrade.uuid);
       const plot = upgrade.plot ?? null;
-      const currentLevel = Number(upgrade.level || 0);
+      const currentLevel = normalizeFiniteNumber(upgrade.level, 0);
       const targetLevel = currentLevel + 1;
 
+      const actionUuid = `building-upgrade-${buildingUuid}-${targetLevel}`;
+
+      const candidateAction = {
+        uuid: actionUuid,
+        entity: 'App\\Entity\\Building',
+        calciumEntity: 'building',
+        metadata: {
+          derived: true,
+          building_uuid: buildingUuid,
+          buildingUuid: buildingUuid,
+          definitionId,
+          currentLevel,
+          targetLevel
+        }
+      };
+
+      const forcedLevel = forcedBuildingLevelsByUuid.get(buildingUuid);
+
+      if (
+        isActionAlreadyCompleted(candidateAction) ||
+        appliedCompletedActionUuids.has(actionUuid) ||
+        (Number.isFinite(Number(forcedLevel)) && Number(forcedLevel) >= targetLevel)
+      ) {
+        console.log('[Calcium][building-upgrade] action ignorée avant création', {
+            reason: 'ALREADY_COMPLETED_OR_FORCED',
+            actionUuid,
+            buildingUuid,
+            currentLevel,
+            targetLevel,
+            forcedLevel,
+            isAlreadyCompleted: isActionAlreadyCompleted(candidateAction),
+            uuidAlreadyCompleted: appliedCompletedActionUuids.has(actionUuid)
+          });
+        return false;
+      }
+
       const buildingDef = buildingDefs.find(entry => entry?.id === definitionId);
+
       if (!buildingDef) {
         console.warn('[Calcium][building-upgrade] Définition introuvable pour:', definitionId);
         return false;
@@ -565,9 +878,13 @@ function initAllianceData() {
       );
 
       if (playerBuilding) {
+        const localForcedLevel = forcedBuildingLevelsByUuid.get(buildingUuid);
+
         playerBuilding.definitionId = definitionId;
         playerBuilding.plot = plot;
-        playerBuilding.level = currentLevel;
+        playerBuilding.level = Number.isFinite(Number(localForcedLevel))
+          ? Math.max(currentLevel, Number(localForcedLevel))
+          : currentLevel;
         playerBuilding.status = upgrade.status || 'building';
       } else {
         console.warn(
@@ -576,25 +893,14 @@ function initAllianceData() {
         );
       }
 
-      const alreadyExists = actions.some(action =>
-        action?.finished !== true &&
-        String(action?.entity || '').endsWith('Building') &&
-        (
-          action?.metadata?.building_uuid === buildingUuid ||
-          action?.metadata?.buildingUuid === buildingUuid
-        ) &&
-        Number(action?.metadata?.targetLevel) === targetLevel
-      );
-
-      if (alreadyExists) {
-        console.log(
-          '[Calcium][building-upgrade] Action déjà présente pour',
-          definitionId,
-          'uuid',
-          buildingUuid,
-          'niveau',
-          targetLevel
-        );
+      if (hasEquivalentActiveAction(candidateAction)) {
+        console.log('[Calcium][building-upgrade] action ignorée car équivalente active', {
+            actionUuid,
+            buildingUuid,
+            currentLevel,
+            targetLevel,
+            existingActions: Calcium.Data.Actions
+          });
         return false;
       }
 
@@ -602,8 +908,16 @@ function initAllianceData() {
       const startAt = new Date(nowMs).toISOString();
       const endAt = new Date(nowMs + reducedDuration * 1000).toISOString();
 
+      if (appliedCompletedActionUuids.has(actionUuid)) {
+        console.log(
+          '[Calcium][building-upgrade] Action dérivée déjà terminée, non recréée:',
+          actionUuid
+        );
+        return false;
+      }
+
       const action = {
-        uuid: `building-upgrade-${buildingUuid}-${targetLevel}`,
+        uuid: actionUuid,
         entity: 'App\\Entity\\Building',
         calciumEntity: 'building',
         plot,
@@ -627,7 +941,7 @@ function initAllianceData() {
         }
       };
 
-      actions.push(action);
+      derivedBuildingActions.push(action);
 
       console.log(
         '[Calcium][building-upgrade] Action créée:',
@@ -645,6 +959,8 @@ function initAllianceData() {
     }
   }
 
+
+  
   function registerResearchUpgradeActionFromResponse(responseJson) {
     try {
       const upgrade = Array.isArray(responseJson) ? responseJson[0] : responseJson;
@@ -699,20 +1015,35 @@ function initAllianceData() {
         );
       }
 
-      const alreadyExists = actions.some(action =>
-        action?.finished !== true &&
-        String(action?.entity || '').endsWith('Research') &&
-        action?.metadata?.research_uuid === researchUuid &&
-        Number(action?.metadata?.targetLevel) === targetLevel
-      );
-
-      if (alreadyExists) {
-        console.log(
-          '[Calcium][research-upgrade] Action déjà présente pour',
+      const candidateAction = {
+        uuid: `research-upgrade-${researchUuid}-${targetLevel}`,
+        entity: 'App\\Entity\\Research',
+        calciumEntity: 'research',
+        metadata: {
+          derived: true,
+          research_uuid: researchUuid,
+          researchUuid: researchUuid,
           definitionId,
-          'uuid',
+          currentLevel,
+          targetLevel
+        }
+      };
+
+      if (isActionAlreadyCompleted(candidateAction)) {
+        console.log(
+          '[Calcium][research-upgrade] Action déjà terminée, non recréée:',
+          candidateAction.uuid
+        );
+        return false;
+      }
+
+      if (hasEquivalentActiveAction(candidateAction)) {
+        console.log(
+          '[Calcium][research-upgrade] Action équivalente déjà active pour',
+          definitionId,
+          'uuid recherche',
           researchUuid,
-          'niveau',
+          'niveau cible',
           targetLevel
         );
         return false;
@@ -721,9 +1052,19 @@ function initAllianceData() {
       const nowMs = Date.now();
       const startAt = new Date(nowMs).toISOString();
       const endAt = new Date(nowMs + computedDuration * 1000).toISOString();
+      const actionUuid = candidateAction.uuid;
+
+      if (appliedCompletedActionUuids.has(actionUuid)) {
+        console.log(
+          '[Calcium][research-upgrade] Action dérivée déjà terminée, non recréée:',
+          actionUuid
+        );
+        return false;
+      }
+
 
       const action = {
-        uuid: `research-upgrade-${researchUuid}-${targetLevel}`,
+        uuid: actionUuid,
         entity: 'App\\Entity\\Research',
         calciumEntity: 'research',
         startAt,
@@ -768,9 +1109,27 @@ function initAllianceData() {
       const payloads = Array.isArray(entries) ? entries : [];
 
       if (/api\.buildings\.[^.]+\.upgrade/.test(categoryKey)) {
+        console.log('[Calcium][upgrade-dataset] catégorie upgrade bâtiment trouvée', {
+          categoryKey,
+          payloadCount: payloads.length,
+          payloads
+        });
+
         payloads.forEach(entry => {
           const response = entry?.response ?? entry?.data ?? entry;
+
+          console.log('[Calcium][upgrade-dataset] réponse upgrade bâtiment analysée', {
+            categoryKey,
+            response
+          });
+
           const didCreate = registerBuildingUpgradeActionFromResponse(response);
+
+          console.log('[Calcium][upgrade-dataset] résultat création action bâtiment', {
+            categoryKey,
+            didCreate
+          });
+
           if (didCreate) {
             hasMutation = true;
           }
@@ -794,6 +1153,7 @@ function initAllianceData() {
   function buildSnapshot() {
     refreshAllComputedData();
     tryRegisterDerivedActionsFromDatasets();
+    processFinishedActions();
 
     return {
       state: {
@@ -1148,56 +1508,86 @@ function initAllianceData() {
     headers = {},
     credentials = 'include'
   } = {}) {
-    const noHpHeaders =
-      headers?.['X-Calcium-No-Hp'] === 'true' ||
-      headers?.['x-calcium-no-hp'] === 'true';
 
-    const finalHeaders = getMandatorySessionHeaders({
-      withJson: json !== undefined,
-      includeHpHeaders: !noHpHeaders
-    });
-    
-    Object.entries(headers || {}).forEach(([key, value]) => {
-      const lowerKey = String(key).toLowerCase();
+    async function executeFetch(withRefreshAttempt = false) {
 
-      if (lowerKey === 'x-calcium-no-hp') {
-        return;
+      const noHpHeaders =
+        headers?.['X-Calcium-No-Hp'] === 'true' ||
+        headers?.['x-calcium-no-hp'] === 'true';
+
+      const finalHeaders = getMandatorySessionHeaders({
+        withJson: json !== undefined,
+        includeHpHeaders: !noHpHeaders
+      });
+
+      Object.entries(headers || {}).forEach(([key, value]) => {
+        const lowerKey = String(key).toLowerCase();
+
+        if (lowerKey === 'x-calcium-no-hp') {
+          return;
+        }
+
+        if (value !== undefined && value !== null) {
+          finalHeaders.set(key, String(value));
+        }
+      });
+
+      const response = await window.fetch(path, {
+        method,
+        credentials,
+        cache: 'no-cache',
+        headers: finalHeaders,
+        body: json !== undefined ? JSON.stringify(json) : undefined
+      });
+
+      // ✅ CAS CRITIQUE : 401
+      if (response.status === 401 && !withRefreshAttempt) {
+        console.warn('[Calcium][API] 401 détecté → tentative refresh token');
+
+        const refresh = await doRefreshToken();
+
+        if (refresh?.ok) {
+          console.log('[Calcium][API] refresh OK → retry requête');
+
+          // ⚠️ IMPORTANT : recharger les données auth
+          refreshAllComputedData();
+
+          return executeFetch(true); // retry UNE SEULE FOIS
+        }
+
+        console.error('[Calcium][API] refresh KO → abandon');
+
+        return {
+          ok: false,
+          status: 401,
+          statusText: 'Unauthorized (refresh failed)',
+          data: null
+        };
       }
 
-      if (value !== undefined && value !== null) {
-        finalHeaders.set(key, String(value));
+      const contentType = response.headers.get('content-type') || '';
+      const text = await response.text();
+
+      let data = text;
+      if (contentType.includes('application/json')) {
+        try {
+          data = text ? JSON.parse(text) : null;
+        } catch {
+          // on garde text brut
+        }
       }
-    });
 
-    const response = await window.fetch(path, {
-      method,
-      credentials,
-      cache: 'no-cache',
-      headers: finalHeaders,
-      body: json !== undefined ? JSON.stringify(json) : undefined
-    });
-
-    const contentType = response.headers.get('content-type') || '';
-    const text = await response.text();
-
-    let data = text;
-    if (contentType.includes('application/json')) {
-      try {
-        data = text ? JSON.parse(text) : null;
-      } catch {
-        // on garde text brut
-      }
+      return {
+        ok: response.ok,
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+        data
+      };
     }
 
-    return {
-      ok: response.ok,
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      data
-    };
+    return executeFetch(false);
   }
-
 
   async function useItem(playerUuid, itemUuid, payload = {}) {
     return calciumApiFetch(
@@ -1256,6 +1646,7 @@ function initAllianceData() {
   });
 
   API.onChange(() => {
+    console.log('[Calcium][SidePanel][MAIN] Dataset prêt');
     refreshAllComputedData();
     tryRegisterDerivedActionsFromDatasets();
     processFinishedActions();

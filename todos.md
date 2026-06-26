@@ -4,6 +4,7 @@ Utilisattion des items dans les actions
 - [X] Filtrer les accélérateurs via le contexts contenant building, research, troop
 - [ ] Ajout des accélérateurs dans les Formations
 - [ ] Ajout des accélérateurs dans les Marches
+- [ ] Revoir dans le state Player pour mettre un S à troop et resource
 
 Utilisation d'un item dans l'inventaire
 - [ ] Lorsqu'un item est utilisé, se servir de Data.Item pour ajouter dans l'inventaire

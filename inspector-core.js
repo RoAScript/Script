@@ -91,6 +91,16 @@
     STATE.lastAuthHeader = token;
   }
 
+
+  function shouldReplaceCategoryPayload(category) {
+    return (
+      /^api\.players\.[^.]+\.actions$/.test(category) ||
+      /^api\.buildings\.[^.]+\.upgrade$/.test(category) ||
+      /^api\.researches\.[^.]+\.upgrade$/.test(category)
+    );
+  }
+
+
   function normalizeUrlToCategory(url, data) {
     const raw = safeText(url).trim();
 
@@ -178,9 +188,26 @@
     ensureCategoryState(category);
     STATE.requestsByCategory[category] += 1;
 
+    if (shouldReplaceCategoryPayload(category)) {
+      STATE.dataByCategory[category] = [payload];
+
+      const rebuilt = new Set();
+      STATE.dataByCategory[category].forEach((item, index) => {
+        rebuilt.add(getDedupKey(item, index));
+      });
+      STATE.seenByCategory[category] = rebuilt;
+
+      return {
+        total: STATE.dataByCategory[category].length,
+        added: 1,
+        requests: STATE.requestsByCategory[category]
+      };
+    }
+
     const target = STATE.dataByCategory[category];
     const seen = STATE.seenByCategory[category];
     const items = Array.isArray(payload) ? payload : [payload];
+
     let added = 0;
 
     items.forEach((item, index) => {
@@ -191,17 +218,13 @@
       added += 1;
     });
 
-    console.log('[mergeCategoryData]', {
-      category,
-      requestCount: STATE.requestsByCategory[category],
-      hasDataKey: Object.prototype.hasOwnProperty.call(STATE.dataByCategory, category),
-      hasRequestKey: Object.prototype.hasOwnProperty.call(STATE.requestsByCategory, category),
-      dataKeys: Object.keys(STATE.dataByCategory),
-      requestKeys: Object.keys(STATE.requestsByCategory)
-    });
-
     trimCategoryIfNeeded(category);
-    return { total: target.length, added, requests: STATE.requestsByCategory[category] };
+
+    return {
+      total: target.length,
+      added,
+      requests: STATE.requestsByCategory[category]
+    };
   }
 
   function inspectAuthData(url, data, headers, requestHeaders) {

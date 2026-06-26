@@ -1,7 +1,8 @@
 import {
   UI_STATE,
   loadPersistentConfiguration,
-  syncStaticUiVisibility
+  syncStaticUiVisibility,
+  loadAutomationTrace
 } from './state.js';
 import {
   formatDuration, getRemainingSeconds, connectLiveUpdates, loadState, setFilter,
@@ -105,6 +106,7 @@ function bindStaticEvents() {
 
 async function init() {
   await loadPersistentConfiguration();
+  await loadAutomationTrace();
 
   syncStaticUiVisibility();
   bindStaticEvents();

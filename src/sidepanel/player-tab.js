@@ -6,30 +6,12 @@ import {
   buildPlayerHero,
   initGlobalTooltips
 } from './player-tab-core.js';
-
-import {
-  renderPlayerGeneralTab,
-  bindGeneralTabEvents
-} from './player-tab-general.js';
-
-import {
-  renderPlayerTroopsTab
-} from './player-tab-troops.js';
-
-import {
-  renderPlayerBuildingsTab,
-  bindBuildingsTabEvents
-} from './player-tab-buildings.js';
-
-import {
-  renderPlayerSearchTab,
-  bindResearchTabEvents
-} from './player-tab-research.js';
-
-import {
-  renderPlayerQuestsTab,
-  bindQuestsTabEvents
-} from './player-tab-quests.js';
+import { renderPlayerGeneralTab, bindGeneralTabEvents} from './player-tab-general.js';
+import { renderPlayerTroopsTab } from './player-tab-troops.js';
+import { renderPlayerBuildingsTab, bindBuildingsTabEvents } from './player-tab-buildings.js';
+import { renderPlayerSearchTab, bindResearchTabEvents } from './player-tab-research.js';
+import { renderPlayerQuestsTab, bindQuestsTabEvents } from './player-tab-quests.js';
+import { renderPlayerFarmTab, bindFarmTabs } from './player-tab-farm.js';
 
 function renderPlayerPanel() {
   const panel = document.getElementById('calcium-player-panel');
@@ -62,7 +44,11 @@ function renderPlayerPanel() {
     content = renderPlayerSearchTab();
   } else if (UI_STATE.activePlayerSubTab === 'quests') {
     content = renderPlayerQuestsTab();
+  } else if (UI_STATE.activePlayerSubTab === 'farm') {
+    content = renderPlayerFarmTab(calcium);
   }
+
+
 
   syncBuildingTabRefresh();
 
@@ -85,6 +71,8 @@ function renderPlayerPanel() {
     bindResearchTabEvents(panel, renderPlayerPanel);
   } else if (UI_STATE.activePlayerSubTab === 'quests') {
     bindQuestsTabEvents(panel, renderPlayerPanel);
+  } else if (UI_STATE.activePlayerSubTab === 'farm') {
+    bindFarmTabs(panel, renderPlayerPanel);
   }
 
 

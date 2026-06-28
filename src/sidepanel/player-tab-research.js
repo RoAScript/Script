@@ -8,17 +8,52 @@ import {
   getItemActionReductionSeconds,
   formatDurationShort,
   applyOptimisticInventoryConsumption,
-  applyOptimisticActionAcceleration
+  applyOptimisticActionAcceleration,
+  formatDurationCompact
 } from './player-tab-core.js';
 
 let rerenderResearchPlayerPanel = null;
 
 function buildSearchRows() {
-  const playerSearch = UI_STATE.snapshot?.calcium?.Data?.Player?.search || [];
+  const calcium = UI_STATE.snapshot?.calcium || null;
+  const playerSearch = calcium?.Data?.Player?.search || [];
+  const actions = UI_STATE.snapshot?.derived?.searchActions || [];
 
   return playerSearch.map(search => {
     const displayLabel = getLabelTrans(search.definitionId, 'research');
     const levelRange = search.level;
+
+    const action = actions.find(a =>
+      !a.finished &&
+      String(a.metadata?.research_uuid) === String(search.uuid)
+    );
+
+    let statusHtml;
+    let levelHtml;
+
+    if (action) {
+      const remainingSeconds = getRemainingSeconds(action);
+
+      const short = formatDurationCompact(remainingSeconds);   // badge
+      const full = formatDuration(remainingSeconds);         // tooltip
+
+      statusHtml = `
+        <span
+          class="calcium-building-group-status is-active"
+          title="${escapeHtml(full)}"
+          data-end-at="${escapeHtml(formatValue(action.endAt, ''))}"
+          data-finished="${String(!!action.finished)}"
+          data-remaining-time="${Number(action.remainingTime || 0)}"
+          data-timer-format="compact"
+        >
+          ${escapeHtml(short)}
+        </span>
+      `;
+      levelHtml = `${escapeHtml(levelRange)} → ${escapeHtml(levelRange+1)}`;
+    } else {
+      statusHtml = ``;
+      levelHtml = `${escapeHtml(levelRange)}`;
+    }
 
     return `
       <tr>
@@ -26,21 +61,21 @@ function buildSearchRows() {
           <div class="calcium-building-cell">
             <div>
               ${
-                search.status === 'searching'
+                action
                   ? `<span class="calcium-building-indicator" title="Recherche en cours"></span>`
                   : `<span class="calcium-building-indicator is-idle"></span>`
               }
               <span class="calcium-building-name">${escapeHtml(displayLabel)}</span>
-              <span class="calcium-building-meta">${escapeHtml(levelRange)}</span>
             </div>
           </div>
         </td>
+
         <td>
-          ${
-            search.status === 'searching'
-              ? `<span class="calcium-building-group-status is-active">En recherche</span>`
-              : `<span class="calcium-building-group-status">Stable</span>`
-          }
+          <span class="calcium-building-meta">${levelHtml}</span>
+        </td>
+
+        <td>
+          ${statusHtml}
         </td>
       </tr>
     `;
@@ -238,6 +273,7 @@ function renderPlayerSearchTab() {
           <thead>
             <tr>
               <th scope="col">Recherche</th>
+              <th scope="col">Niv.</th>
               <th scope="col">Statut</th>
             </tr>
           </thead>

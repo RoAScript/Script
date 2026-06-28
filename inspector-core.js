@@ -94,10 +94,12 @@
 
   function shouldReplaceCategoryPayload(category) {
     return (
-      /^api\.players\.[^.]+\.actions$/.test(category) ||
-      /^api\.buildings\.[^.]+\.upgrade$/.test(category) ||
-      /^api\.researches\.[^.]+\.upgrade$/.test(category)
-    );
+        /^api\.players\.[^.]+\.actions$/.test(category) ||
+        /^api\.players\.[^.]+\.battles\.[^.]+$/.test(category) ||
+        /^api\.players\.[^.]+\.battles\.[^.]+\.farm-status$/.test(category) ||
+        /^api\.buildings\.[^.]+\.upgrade$/.test(category) ||
+        /^api\.researches\.[^.]+\.upgrade$/.test(category)
+      );
   }
 
 

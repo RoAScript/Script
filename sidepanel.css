@@ -1551,6 +1551,122 @@ code {
 }
 
 /* =========================================================
+   ACTION BÂTIMENT - ACCORDÉON ACCÉLÉRATEURS
+   ========================================================= */
+
+.calcium-building-action-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+
+  background: transparent;
+  color: var(--muted);
+
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+
+  transition:
+    color 0.12s ease,
+    background 0.12s ease,
+    transform 0.12s ease;
+}
+
+.calcium-building-action-collapse:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.calcium-building-action-item.is-collapsed .calcium-building-action-collapse {
+  transform: rotate(-90deg);
+}
+
+.calcium-building-action-item.is-collapsed .calcium-accel-buttons {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 0;
+  pointer-events: none;
+}
+
+.calcium-action-info {
+  min-width: 0;
+}
+
+.calcium-building-action-main {
+  align-items: center;
+}
+
+.calcium-building-action-item.is-collapsed {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.calcium-actions-list {
+  gap: 4px;
+}
+
+/* =========================================================
+   AUTOMATION PANEL - COLLAPSIBLE
+   ========================================================= */
+
+.calcium-building-automation-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Triangle */
+.calcium-building-automation-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+
+  border: none;
+  background: transparent;
+  color: var(--muted);
+
+  font-size: 11px;
+  cursor: pointer;
+
+  border-radius: 4px;
+  transition: 0.15s ease;
+}
+
+.calcium-building-automation-collapse:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+}
+
+/* rotation */
+.calcium-building-automation-panel.is-collapsed
+  .calcium-building-automation-collapse {
+  transform: rotate(-90deg);
+}
+
+/* contenu masqué */
+.calcium-building-automation-panel.is-collapsed
+  .calcium-building-automation-content {
+  display: none;
+}
+
+.calcium-building-automation-panel.is-collapsed > :not(.calcium-building-automation-main) {
+  display: none;
+}
+
+/* =========================================================
    CONFIGURATION
    ========================================================= */
 
@@ -1927,6 +2043,204 @@ code {
   border-color: rgba(232, 176, 74, 0.42);
   background: rgba(232, 176, 74, 0.14);
   color: #f2c96b;
+}
+
+.calcium-tree-leaf::after {
+  content: "click to copy";
+  opacity: 0;
+  font-size: 8px;
+  margin-left: 6px;
+  color: #888;
+}
+
+.calcium-tree-leaf:hover::after {
+  opacity: 1;
+}
+
+.calcium-rewards-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calcium-rewards-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calcium-rewards-title {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 4px;
+}
+
+.calcium-rewards-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+}
+
+.calcium-quest-group-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.calcium-quest-group-content .calcium-table-wrap {
+  width: 100%;
+}
+
+.calcium-quest-group-content .calcium-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.calcium-details-chevron {
+  margin-left: auto;
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid #aaa;
+  border-bottom: 2px solid #aaa;
+  transform: rotate(-45deg);
+  transition: transform 0.2s ease;
+}
+
+details[open] .calcium-details-chevron {
+  transform: rotate(45deg);
+}
+
+.calcium-quest-group-summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: background 0.15s ease;
+}
+
+.calcium-quest-group-summary:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.calcium-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 6px 0 12px;
+}
+
+.calcium-tab {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.calcium-tab:hover {
+  background: rgba(255,255,255,0.08);
+}
+
+.calcium-tab.active {
+  background: rgba(59,130,246,0.25);
+  border-color: rgba(59,130,246,0.6);
+  color: #fff;
+}
+
+/* Option bonus : version pills */
+.calcium-tabs {
+  background: rgba(255,255,255,0.03);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+/* stats */
+.calcium-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.calcium-stat-card {
+  padding: 10px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 8px;
+}
+
+.calcium-stat-title {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.calcium-stat-value {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.calcium-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  margin: 6px 0 12px;
+}
+
+.calcium-tab {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid transparent;
+  color: rgba(255,255,255,0.7);
+  transition: all 0.15s ease;
+}
+
+.calcium-tab:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,1);
+}
+
+.calcium-tab.active {
+  background: rgba(59,130,246,0.25);
+  border-color: rgba(59,130,246,0.6);
+  color: #fff;
+}
+
+.calcium-drop-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calcium-drop-line {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.calcium-drop-line-event .calcium-drop-name::before {
+  content: "★ ";
+}
+
+.calcium-drop-name {
+  font-weight: 500;
+}
+
+.calcium-drop-count {
+  opacity: 0.9;
+  text-align: right;
+}
+
+.calcium-drop-percent {
+  opacity: 0.75;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 ::-webkit-scrollbar {

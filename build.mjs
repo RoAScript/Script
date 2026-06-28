@@ -14,8 +14,8 @@ const moduleOrder = [
   'src/sidepanel/player-tab-buildings.js',
   'src/sidepanel/player-tab-research.js',
   'src/sidepanel/player-tab-quests.js',
+  'src/sidepanel/player-tab-farm.js',
   'src/sidepanel/player-tab.js',
-
   'src/sidepanel/alliance-tab.js',
   'src/sidepanel/calcium-tab.js',
   'src/sidepanel/configuration-tab.js',

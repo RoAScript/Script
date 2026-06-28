@@ -190,6 +190,7 @@ function buildPlayerHero() {
       <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'batiments' ? 'active' : ''}" data-player-subtab="batiments">Bâtiments</button>
       <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'recherche' ? 'active' : ''}" data-player-subtab="recherche">Recherche</button>
       <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'quests' ? 'active' : ''}" data-player-subtab="quests">Quêtes</button>
+      <button class="calcium-player-subtab ${UI_STATE.activePlayerSubTab === 'farm' ? 'active' : ''}" data-player-subtab="farm">Farm</button>
     </div>
   `;
 }
@@ -203,24 +204,23 @@ function getItemActionReductionSeconds(itemDef) {
 }
 
 function formatDurationShort(seconds) {
-  const total = Math.max(0, Number(seconds || 0));
-
-  if (total < 60) {
-    return `${total}s`;
-  }
-
-  if (total < 3600) {
-    return `${Math.round(total / 60)}m`;
-  }
+  const total = Math.max(0, Math.floor(Number(seconds || 0)));
 
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
 
-  if (minutes === 0) {
-    return `${hours}h`;
+  const pad = (v) => String(v).padStart(2, '0');
+
+  if (hours > 0) {
+    return `${hours}h ${pad(minutes)}`;
   }
 
-  return `${hours}h${minutes}`;
+  if (minutes > 0) {
+    return `${minutes}m ${pad(secs)}`;
+  }
+
+  return `${secs}s`;
 }
 
 function applyOptimisticInventoryConsumption(itemUuid, usedCount) {

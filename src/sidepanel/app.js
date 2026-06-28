@@ -10,6 +10,7 @@ import {
   rebuildCategoryOptions, refreshSelectedDataView
 } from './core.js';
 import { renderPlayerPanel, initGlobalTooltips } from './player-tab.js';
+import { formatDurationShort } from './player-tab-core.js';
 import { renderAlliancePanel, renderCalciumPanel } from './calcium-tab.js';
 
 function refreshCountdownElements() {
@@ -22,7 +23,12 @@ function refreshCountdownElements() {
       remainingTime: Number(el.dataset.remainingTime || 0)
     };
 
-    el.textContent = formatDuration(getRemainingSeconds(fakeAction));
+    if (el.dataset.timerFormat === 'compact') {
+      el.textContent = formatDurationShort(getRemainingSeconds(fakeAction));
+      el.title = formatDuration(getRemainingSeconds(fakeAction));
+    } else {
+      el.textContent = formatDuration(getRemainingSeconds(fakeAction));
+    }
   });
 }
 

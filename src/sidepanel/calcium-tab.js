@@ -27,6 +27,22 @@ function renderCalciumPanel() {
       </div>
     </section>
   `;
+
+    panel.addEventListener('click', (e) => {
+      const target = e.target.closest('[data-path]');
+      if (!target) return;
+
+      const path = target.dataset.path;
+      if (!path) return;
+
+      navigator.clipboard.writeText(path);
+
+      // feedback visuel (optionnel)
+      target.style.background = 'rgba(77,134,255,0.3)';
+      setTimeout(() => {
+        target.style.background = '';
+      }, 600);
+  });
 }
 
 function escapeTreeValue(value) {
@@ -39,6 +55,18 @@ function getValueType(value) {
   return typeof value;
 }
 
+function buildSafePath(path, key) {
+  if (!path) return key;
+
+  // tableau -> on garde [index]
+  if (key.startsWith('[')) {
+    return `${path}${key}`;
+  }
+
+  // objet -> on met ?.
+  return `${path}?.${key}`;
+}
+
 function renderTreeNode(key, value, path = '', depth = 0) {
   const type = getValueType(value);
 
@@ -48,7 +76,7 @@ function renderTreeNode(key, value, path = '', depth = 0) {
 
     return `
       <details class="calcium-tree-node calcium-tree-branch" ${isOpen ? 'open' : ''}>
-        <summary class="calcium-tree-summary">
+        <summary class="calcium-tree-summary" data-path="${path}">
           <span class="calcium-tree-key">${escapeTreeValue(key)}</span>
           <span class="calcium-tree-meta">Array(${count})</span>
         </summary>
@@ -75,7 +103,12 @@ function renderTreeNode(key, value, path = '', depth = 0) {
         <div class="calcium-tree-children">
           ${entries.length
             ? entries.map(([childKey, childValue]) =>
-                renderTreeNode(childKey, childValue, path ? `${path}.${childKey}` : childKey, depth + 1)
+                renderTreeNode(
+                  childKey,
+                  childValue,
+                  buildSafePath(path, childKey),
+                  depth + 1
+                )
               ).join('')
             : `<div class="calcium-tree-leaf"><span class="calcium-tree-empty">{}</span></div>`
           }
@@ -85,7 +118,7 @@ function renderTreeNode(key, value, path = '', depth = 0) {
   }
 
   return `
-    <div class="calcium-tree-node calcium-tree-leaf">
+    <div class="calcium-tree-node calcium-tree-leaf" data-path="${path}">
       <span class="calcium-tree-key">${escapeTreeValue(key)}</span>
       <span class="calcium-tree-separator">:</span>
       <span class="calcium-tree-value calcium-tree-value-${type}">

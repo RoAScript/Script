@@ -27,7 +27,7 @@ let buildingAutomationCooldownUiIntervalId = null;
 let lastTraceByType = {};
 
 const coolDownConstruction = 10000;
-
+const collapsedBuildingActions = new Set();
 
 /* =========================================================
    ACCÉLÉRATEURS BÂTIMENTS
@@ -75,6 +75,19 @@ function getAvailableBuildingAccelerationItems(calcium) {
     });
 }
 
+function getBuildingActionCollapseKey(action) {
+  return String(
+    action?.uuid ||
+    action?.id ||
+    action?.['@id'] ||
+    action?.metadata?.action_uuid ||
+    action?.metadata?.actionUuid ||
+    action?.metadata?.building_uuid ||
+    action?.metadata?.buildingUuid ||
+    ''
+  );
+}
+
 function buildAccelerationBuildingButtons(action, calcium) {
   const items = getAvailableBuildingAccelerationItems(calcium);
 
@@ -113,28 +126,36 @@ function bindBuildingAccelerationButtons(scope = document) {
   container.dataset.buildingAccelBound = 'true';
 
   container.addEventListener('click', async (event) => {
-    const btn = event.target.closest('.calcium-accel-btn');
+    const collapseBtn = event.target.closest('.calcium-building-action-collapse');
+    if (collapseBtn) {
+      const collapseKey = collapseBtn.dataset.buildingActionCollapse;
+      if (!collapseKey) return;
 
+      if (collapsedBuildingActions.has(collapseKey)) {
+        collapsedBuildingActions.delete(collapseKey);
+      } else {
+        collapsedBuildingActions.add(collapseKey);
+      }
+
+      rerenderBuildingsPlayerPanel?.();
+      return;
+    }
+
+    const btn = event.target.closest('.calcium-accel-btn');
     if (!btn) return;
 
     const itemUuid = btn.dataset.itemUuid;
     const actionUuid = btn.dataset.actionUuid;
-
     if (!itemUuid || !actionUuid) return;
 
     btn.disabled = true;
-
     const previousText = btn.textContent;
-
     btn.textContent = '...';
 
     try {
       const response = await usePlayerItem(itemUuid, {
         count: 1,
-        target: {
-          type: 'action',
-          value: actionUuid
-        }
+        target: { type: 'action', value: actionUuid }
       });
 
       if (!response?.ok) {
@@ -143,7 +164,6 @@ function bindBuildingAccelerationButtons(scope = document) {
       }
 
       applyOptimisticInventoryConsumption(itemUuid, 1);
-
       rerenderBuildingsPlayerPanel?.();
     } catch (error) {
       console.error('[Calcium][building-accel] KO', error);
@@ -151,7 +171,6 @@ function bindBuildingAccelerationButtons(scope = document) {
     } finally {
       window.setTimeout(() => {
         if (!btn.isConnected) return;
-
         btn.disabled = false;
         btn.textContent = previousText;
       }, 250);
@@ -175,6 +194,11 @@ function buildBuildingActionsSummary() {
   return `
     <div class="calcium-actions-list">
       ${actions.map((action) => {
+
+        const collapseKey = getBuildingActionCollapseKey(action);
+        const isCollapsed = collapseKey && collapsedBuildingActions.has(collapseKey);
+        const settlement = calcium.Data?.Player?.settlements?.find(item => item.uuid === action.metadata.settlement_uuid);
+
         const buildingUuid =
           action.metadata?.building_uuid ||
           action.metadata?.buildingUuid;
@@ -204,33 +228,43 @@ function buildBuildingActionsSummary() {
         const iconSrc = chrome.runtime.getURL(`images/${building?.definitionId}.webp`);
 
         return `
-          <div class="calcium-action-item calcium-building-action-item">
+          <div class="calcium-action-item calcium-building-action-item ${isCollapsed ? 'is-collapsed' : ''}"
+              data-building-action-key="${escapeHtml(collapseKey)}">
+
             <div class="calcium-action-main calcium-building-action-main">
+
+              <button
+                type="button"
+                class="calcium-building-action-collapse"
+                data-building-action-collapse="${escapeHtml(collapseKey)}"
+                title="${isCollapsed ? 'Déplier les accélérateurs' : 'Replier les accélérateurs'}"
+                aria-label="${isCollapsed ? 'Déplier les accélérateurs' : 'Replier les accélérateurs'}"
+                aria-expanded="${isCollapsed ? 'false' : 'true'}">
+                ▾
+              </button>
+
               <span class="calcium-action-badge"></span>
 
               <img
+                src="${iconSrc}"
                 class="calcium-building-icon"
-                src="${escapeHtml(iconSrc)}"
                 alt="${escapeHtml(buildingName)}"
-              />
+                title="${escapeHtml(buildingName)}"
+              >
 
-              <div>
+              <div class="calcium-action-info">
                 <div class="calcium-action-title">
-                  ${escapeHtml(buildingName)}
+                  ${escapeHtml(buildingName)} - ${escapeHtml(settlement?.name)}
                 </div>
                 <div class="calcium-action-meta">
                   ${escapeHtml(String(currentLevel))} -> ${escapeHtml(String(targetLevel))}
                 </div>
               </div>
 
-              <span
-                class="calcium-action-timer"
-                data-building-remaining-seconds="${escapeHtml(String(remainingSeconds))}"
-                data-building-timer-format="compact"
-                title="${escapeHtml(formatDuration(remainingSeconds))}"
-              >
+              <div class="calcium-action-timer">
                 ${escapeHtml(formatDurationCompact(remainingSeconds))}
-              </span>
+              </div>
+
             </div>
 
             ${calcium ? buildAccelerationBuildingButtons(action, calcium) : ''}
@@ -945,70 +979,70 @@ function buildBuildingAutomationPanel() {
 
   return `
     <div class="calcium-building-automation-panel">
+
       <div class="calcium-building-automation-main">
+
         <div class="calcium-building-automation-text">
-          <div class="calcium-building-automation-title">
-            Automatisation bâtiments
+
+          <div class="calcium-building-automation-title-row">
+
+            <div class="calcium-building-automation-title">
+              Automatisation bâtiments
+            </div>
+
           </div>
+
+          <div class="calcium-building-automation-subtitle">
+            ${enabled ? 'Actif' : 'Inactif'}
+          </div>
+
         </div>
 
         <button
-          type="button"
           class="calcium-building-automation-toggle ${enabled ? 'is-active' : ''}"
-          data-building-automation-toggle="true"
-        >
+          data-building-automation-toggle>
           ${enabled ? '⏸ Désactiver' : '▶ Activer'}
         </button>
+
       </div>
 
-      <div class="calcium-building-automation-stats">
-        <span class="calcium-building-automation-chip ${enabled ? 'is-active' : ''}">
-          ${enabled ? 'Actif' : 'Inactif'}
-        </span>
+      <div class="calcium-building-automation-content">
 
-        <span
-          class="calcium-building-automation-chip ${cooldownRemainingSeconds > 0 ? 'is-waiting' : ''}"
-          data-building-automation-cooldown="true"
-        >
-          ${cooldownRemainingSeconds > 0
-            ? `Pause ${escapeHtml(String(cooldownRemainingSeconds))}s`
-            : 'Pause prête'}
-        </span>
+        <div class="calcium-building-automation-stats">
+          <div class="calcium-building-automation-chip ${enabled ? 'is-active' : ''}">
+            ${enabled ? 'Actif' : 'Inactif'}
+          </div>
+          <div class="calcium-building-automation-chip ${cooldownRemainingSeconds > 0 ? 'is-waiting' : ''}">
+            ${cooldownRemainingSeconds > 0 ? `Pause ${cooldownRemainingSeconds}s` : 'Pause prête'}
+          </div>
+          <div class="calcium-building-automation-chip">
+            Cibles ${escapeHtml(String(summary.enabledTargets ?? 0))}
+          </div>
+          <div class="calcium-building-automation-chip">
+            À traiter ${escapeHtml(String(summary.pendingBuildings ?? 0))}
+          </div>
+          <div class="calcium-building-automation-chip is-ok">
+            Prêtes ${escapeHtml(String(summary.ready ?? 0))}
+          </div>
+          <div class="calcium-building-automation-chip is-ko">
+            Bloquées ${escapeHtml(String(summary.blocked ?? 0))}
+          </div>
+          <div class="calcium-building-automation-chip">
+            Atteintes ${escapeHtml(String(summary.completedTargets ?? 0))}
+          </div>
+        </div>
 
+        <div class="calcium-building-automation-next">
+          <div class="calcium-building-automation-next-label">
+            Prochaine action
+          </div>
+          <div class="calcium-building-automation-next-value">
+            ${escapeHtml(candidateLabel)}
+          </div>
+        </div>
 
-        <span class="calcium-building-automation-chip">
-          Cibles ${escapeHtml(String(summary.enabledTargets || 0))}
-        </span>
-
-        <span class="calcium-building-automation-chip">
-          À traiter ${escapeHtml(String(summary.pendingBuildings || 0))}
-        </span>
-
-        <span class="calcium-building-automation-chip is-ok">
-          Prêtes ${escapeHtml(String(summary.ready || 0))}
-        </span>
-
-        <span class="calcium-building-automation-chip is-ko">
-          Bloquées ${escapeHtml(String(summary.blocked || 0))}
-        </span>
-
-        <span class="calcium-building-automation-chip">
-          Atteintes ${escapeHtml(String(summary.completedTargets || 0))}
-        </span>
       </div>
 
-      <div class="calcium-building-automation-next">
-        <span class="calcium-building-automation-next-label">
-          Prochaine action
-        </span>
-
-        <span
-          class="calcium-building-automation-next-value"
-          title="${escapeHtml(candidateTitle)}"
-        >
-          ${escapeHtml(candidateLabel)}
-        </span>
-      </div>
     </div>
   `;
 }

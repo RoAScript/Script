@@ -28,7 +28,11 @@ export const CalciumI18n = {
       science_center: "Centre scientifique",
       rookery: "Volière",
       storage_vault: "Coffre fort",
-      wall: "Mur"
+      wall: "Mur",
+      glowing_mandrake_factory: "Usine à mandragore",
+      glowing_mandrake_cache: "Cache à mandragore",
+      fangtooth_factory: "Usine à fangtooth",
+      fangtooth_cache: "Cache à fangtooth"
     },
     research: {
       draconic_wisdom: "Sagesse draconique",
@@ -136,6 +140,7 @@ export const CalciumI18n = {
       purple_bones: "Os violet",
       resource_chest_250k: "Coffre ressource 250k",
       resource_chest_500k: "Coffre ressource 500k",
+      all_resources_pack_25m: "Coffre ressource 25M",
       testronius_dust: "Testro 15%",
       testronius_powder: "Testro 30%",
       testronius_deluxe: "Testro 50%",
@@ -155,11 +160,22 @@ export const CalciumI18n = {
       great_dragon_armor_helmet: "Casque draconique",
       great_dragon_armor_body: "Plastron draconique",
       great_dragon_armor_claws: "Griffes draconique",
-      great_dragon_armor_claws: "Queue draconique",
+      great_dragon_armor_tails: "Queue draconique",
+      water_dragon_armor_helmet: "Casque draconique",
+      water_dragon_armor_body: "Plastron draconique",
+      water_dragon_armor_claws: "Griffes draconique",
+      water_dragon_armor_tails: "Queue draconique",
+      stone_dragon_armor_helmet: "Casque draconique",
+      stone_dragon_armor_body: "Plastron draconique",
+      stone_dragon_armor_claws: "Griffes draconique",
+      stone_dragon_armor_tails: "Queue draconique",
       abyssal_demon_chest: "Coffre abyssal du démon",
       infernal_blood_chest: "Coffre infernal du sang",
       void_demon_chest: "Coffre démonniaque",
       cursed_ember_chest: "Coffre de braise maudit",
+      respirator_pack_10k: "Pack de 10k respirateur",
+      respirator_pack_1k: "Pack de 1k resipirateur",
+      glowing_mandrake_pack_1k: "Pack de 1k mandragore",
       random_troop_pack_100k_250k: "Pack aléa. 100k/200k",
       random_troop_pack_1k_5k: "Pack aléa. 1k/5k",
       random_troop_pack_5k_10k: "Pack aléa. 5k/10k",
@@ -180,7 +196,17 @@ export const CalciumI18n = {
       lost_soul_fragment: "Fragment d'âme perdu",
       veiled_blood_mark: "Marque de sang voilée",
       drowned_bell: "Cloche engloutie",
-      cursed_blood_drop: "Goutte de sang maudite"
+      boss_heart: "Coeur du boss",
+      draconic_seal: "Sceau draconique",
+      infernal_warrant: "Mandat infernal",
+      cursed_blood_drop: "Goutte de sang maudite",
+      hellsteel_scrap: "Acier infernal",
+      chronos_bag: "Sac de Chronos",
+      battle_dragon_pack_10k: "Pack de 10k Dragon de combat",
+      battle_dragon_pack_1k: "Pack de 1k Dragon de combat",
+      fangtooth_troop_pack_10k: "Pack de 10k Fangtooth",
+      swift_strike_dragon_pack_10k: "Pack de 10k dragon volant",
+      chronos_vault: "Coffre de Chronos"
     }
   }
 };

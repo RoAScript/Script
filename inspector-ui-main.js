@@ -34,6 +34,9 @@
         items: [],
         settlements: [],
         quests: [],
+        account: [],
+        battles: {},
+        farmStatus: {}
       },
       Actions: [],
       Buildings: [],
@@ -98,6 +101,16 @@
     return Calcium.Data.Actions.filter(action =>
       action.calciumEntity === String(type).toLowerCase()
     );
+  }
+
+  function getLatestCategoryEntry(categoryKey) {
+    const entries = STATE.dataByCategory?.[categoryKey];
+
+    if (!Array.isArray(entries) || !entries.length) {
+      return null;
+    }
+
+    return entries[entries.length - 1] || null;
   }
 
   function getActionByTypeAndUuid(type, uuid) {
@@ -181,9 +194,50 @@
     Calcium.Data.Realm = realmData?.[0]?.member?.[0];
   }
 
+  function initBattleData() {
+    const playerUuid = Calcium?.guid?.player || Calcium?.Data?.Player?.uuid;
+
+    Calcium.Data.Player.battles = {};
+    Calcium.Data.Player.farmStatus = {};
+
+    if (!playerUuid) {
+      return;
+    }
+
+    const battleBaseRegex = new RegExp(`^api\\.players\\.${playerUuid}\\.battles\\.([^.]+)$`);
+    const farmStatusRegex = new RegExp(`^api\\.players\\.${playerUuid}\\.battles\\.([^.]+)\\.farm-status$`);
+
+    Object.keys(STATE.dataByCategory || {}).forEach((categoryKey) => {
+      const battleMatch = categoryKey.match(battleBaseRegex);
+
+      if (battleMatch) {
+        const battleUuid = battleMatch[1];
+        const latestEntry = getLatestCategoryEntry(categoryKey);
+
+        if (battleUuid && latestEntry) {
+          Calcium.Data.Player.battles[battleUuid] = latestEntry;
+        }
+
+        return;
+      }
+
+      const farmStatusMatch = categoryKey.match(farmStatusRegex);
+
+      if (farmStatusMatch) {
+        const battleUuid = farmStatusMatch[1];
+        const latestEntry = getLatestCategoryEntry(categoryKey);
+
+        if (battleUuid && latestEntry) {
+          Calcium.Data.Player.farmStatus[battleUuid] = latestEntry;
+        }
+      }
+    });
+  }
+
   function initPlayerData() {
     const playerData = STATE.dataByCategory[`api.accounts.${Calcium.guid.account}.players`]?.[0]?.member?.[0] || null;
 
+    Calcium.Data.Player.account = playerData;
     Calcium.Data.Player.uuid = playerData?.uuid;
     Calcium.Data.Player.username = playerData?.username || null;
     Calcium.Data.Player.level = playerData?.level || 0;
@@ -404,6 +458,7 @@
     initPlayerData();
     initBuildingData();
     initActionData();
+    initBattleData();
     initResearchData();
     initResourceData();
     initAllianceData();

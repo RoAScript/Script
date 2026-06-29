@@ -261,8 +261,8 @@ function buildBuildingActionsSummary() {
                 </div>
               </div>
 
-              <div class="calcium-action-timer">
-                ${escapeHtml(formatDurationCompact(remainingSeconds))}
+              <div class="calcium-action-timer" data-building-remaining-seconds="${remainingSeconds}">
+                ${escapeHtml(formatDuration(remainingSeconds))}
               </div>
 
             </div>
@@ -795,6 +795,7 @@ async function runBuildingAutomationTick() {
 
     if (!response?.ok) {
       const isAuthError = response?.status === 401;
+      const isSynError = response?.status === 400;
 
       await pushAutomationTraceDedup({
         type: 'UPGRADE_FAILED',
@@ -804,6 +805,10 @@ async function runBuildingAutomationTick() {
 
       if (isAuthError) {
         console.warn('[Calcium][automation] Auth KO → désactivation automation');
+        await setBuildingAutomationEnabled(false);
+      }
+      if (isSynError) {
+        console.warn('[Calcium][automation] Sync KO → désactivation automation');
         await setBuildingAutomationEnabled(false);
       }
       console.warn('[Calcium][building-automation] Upgrade KO', response);

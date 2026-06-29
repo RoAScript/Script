@@ -31,9 +31,9 @@ function formatDuration(seconds) {
   const secs = total % 60;
 
   const values = [
-    { value: days, label: "jr" },
+    { value: days, label: "j" },
     { value: hours, label: "h" },
-    { value: minutes, label: "min" },
+    { value: minutes, label: "m" },
     { value: secs, label: "s" }
   ];
 

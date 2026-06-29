@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Calcium",
-  "version": "2026.628",
-  "description": "Outil pour suivre son avancée dans RoA - RiseOfAtlantis",
+  "version": "2026.629",
+  "description": "Outil Calcium pour suivre son avancée dans RoA - RiseOfAtlantis",
   "permissions": [
     "sidePanel",
     "tabs",

@@ -896,25 +896,28 @@
         return false;
       }
 
-      const requirement = buildingDef?.requirements?.city?.[String(targetLevel)];
+      const playerBuilding = playerBuildings.find( building => String(building?.uuid || '') === buildingUuid);
+      const settlementApiId = playerBuilding?.settlement || null;
+      const settlements = Calcium?.Data?.Player?.settlements || [];
+      const settlement = settlements.find(s => {
+        return String(s?.['@id'] || s?.id || '') === String(settlementApiId);
+      });
+
+      if (!settlement) {
+        console.warn('[Calcium][building-upgrade] settlement introuvable', settlementApiId);
+      }
+
+      const type = settlement?.type || 'city'; 
+      const requirement = buildingDef?.requirements?.[String(type)]?.[String(targetLevel)];
+
       if (!requirement) {
-        console.warn(
-          '[Calcium][building-upgrade] Requirement city introuvable pour',
-          definitionId,
-          'niveau',
-          targetLevel
-        );
+        console.warn( '[Calcium][building-upgrade] Requirement city introuvable pour', definitionId, 'niveau', targetLevel);
         return false;
       }
 
       const baseDuration = Number(requirement.duration || 0);
       if (!baseDuration) {
-        console.warn(
-          '[Calcium][building-upgrade] Duration absente/invalide pour',
-          definitionId,
-          'niveau',
-          targetLevel
-        );
+        console.warn('[Calcium][building-upgrade] Duration absente/invalide pour', definitionId, 'niveau', targetLevel);
         return false;
       }
 
@@ -923,14 +926,7 @@
       );
       const levitationLevel = Number(levitationResearch?.level || 0);
       const reductionPercent = levitationLevel * 5;
-      const reducedDuration = Math.max(
-        1,
-        Math.floor(baseDuration * (1 - reductionPercent / 100))
-      );
-
-      const playerBuilding = playerBuildings.find(
-        building => String(building?.uuid || '') === buildingUuid
-      );
+      const reducedDuration = Math.max(1, Math.floor(baseDuration * (1 - reductionPercent / 100)));
 
       if (playerBuilding) {
         const localForcedLevel = forcedBuildingLevelsByUuid.get(buildingUuid);
@@ -1597,7 +1593,7 @@
 
       // ✅ CAS CRITIQUE : 401
       if (response.status === 401 && !withRefreshAttempt) {
-        console.warn('[Calcium][API] 401 détecté → tentative refresh token');
+        console.warn('[Calcium][API] '+response.status+' détecté → tentative refresh token');
 
         const refresh = await doRefreshToken();
 

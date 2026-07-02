@@ -988,6 +988,7 @@
           baseDuration,
           durationReductionPercent: reductionPercent,
           levitationLevel,
+          settlement_uuid: settlement?.uuid,
           status: upgrade.status || null
         }
       };

@@ -196,7 +196,7 @@ function buildBuildingActionsSummary() {
       ${actions.map((action) => {
 
         const collapseKey = getBuildingActionCollapseKey(action);
-        const isCollapsed = collapseKey && collapsedBuildingActions.has(collapseKey);
+        const isCollapsed = !(collapseKey && collapsedBuildingActions.has(collapseKey));
         const settlement = calcium.Data?.Player?.settlements?.find(item => item.uuid === action.metadata.settlement_uuid);
 
         const buildingUuid =
@@ -257,7 +257,7 @@ function buildBuildingActionsSummary() {
                   ${escapeHtml(buildingName)} - ${escapeHtml(settlement?.name)}
                 </div>
                 <div class="calcium-action-meta">
-                  ${escapeHtml(String(currentLevel))} -> ${escapeHtml(String(targetLevel))}
+                  ${escapeHtml(String(currentLevel))} → ${escapeHtml(String(targetLevel))}
                 </div>
               </div>
 
@@ -1468,7 +1468,7 @@ function buildGroupedBuildingsRowsBySettlement() {
                     data-building-timer-format="compact"
                     title="${escapeHtml(formatDuration(group.remainingSeconds))}"
                   >
-                    ⏱ ${escapeHtml(formatDurationCompact(group.remainingSeconds))}
+                    ${escapeHtml(formatDurationCompact(group.remainingSeconds))}
                   </span>
                 `
                 : ''

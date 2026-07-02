@@ -970,23 +970,6 @@ function renderFarmStats() {
     </div>
 
     <div class="calcium-player-section">
-      <div class="calcium-player-subtitle">Objets cumulés</div>
-      <div class="calcium-table-wrap">
-        <table class="calcium-table">
-          <tbody>
-            ${Object.entries(data.items).map(([key, value]) => `
-              <tr>
-                <th>${escapeHtml(getLabelTrans(key, 'item') || key)}</th>
-                <td>${escapeHtml(formatCompactNumber(value))}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>  
-
-
-    <div class="calcium-player-section">
         <div class="calcium-player-subtitle">Drops par cible</div>
 
         <div class="calcium-table-wrap">

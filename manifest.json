@@ -2,14 +2,14 @@
   "manifest_version": 3,
   "name": "Calcium",
   "version": "2026.629",
-  "description": "Outil Calcium pour suivre son avancée dans RoA - RiseOfAtlantis",
+  "description": "Outil Calcium pour suivre son avancée dans RoA - ReignOfAtlantis",
   "permissions": [
     "sidePanel",
     "tabs",
     "storage"
   ],
   "host_permissions": [
-    "https://*.riseofatlantis.fr/"
+    "https://*.reignofatlantis.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -35,7 +35,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.riseofatlantis.fr/*"
+        "https://*.reignofatlantis.com/*"
       ],
       "js": [
         "inspector-core.js",
@@ -48,7 +48,7 @@
     },
     {
       "matches": [
-        "https://*.riseofatlantis.fr/*"
+        "https://*.reignofatlantis.com/*"
       ],
       "js": [
         "inspector-ui-bridge.js"

@@ -80,6 +80,7 @@ function inferSettlementKindFromRequirementContext(context) {
   if (context === 'outpost') return 'outpost';
   if (context === 'water') return 'outpost';
   if (context === 'stone') return 'outpost';
+  if (context === 'fire' ) return 'outpost';
 
   return null;
 }

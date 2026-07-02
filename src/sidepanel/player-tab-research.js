@@ -189,7 +189,7 @@ function buildSearchActionsSummary() {
             <div class="calcium-action-main">
               <span class="calcium-action-badge"></span>
               <span class="calcium-action-title">
-                ${escapeHtml(searchName)} ${currentLevel} -> ${targetLevel}
+                ${escapeHtml(searchName)} ${currentLevel} → ${targetLevel}
               </span>
               <span
                 class="calcium-action-timer"

@@ -36,7 +36,17 @@ body {
 }
 
 body {
-  min-height: 100vh;
+  background-image:
+    linear-gradient(rgba(12, 16, 24, 0.84), rgba(12, 16, 24, 0.2)),
+    url("./images/calcium_background.png");
+
+
+    background-repeat: no-repeat, no-repeat;
+    background-position: center center, center center;
+    background-size: cover, cover;
+
+    background-attachment: fixed, fixed;
+
 }
 
 button,
@@ -120,6 +130,11 @@ pre {
   transition: 120ms ease;
   font-size: 10px;
   line-height: 1.1;
+}
+
+.calcium-player-panel,
+.calcium-main-tabs {
+    background: transparent !important;
 }
 
 .calcium-btn {
@@ -2241,6 +2256,37 @@ details[open] .calcium-details-chevron {
   opacity: 0.75;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.calcium-troop-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.calcium-troops-table td {
+    font-variant-numeric: tabular-nums;
+}
+
+.calcium-troops-table td:not(:first-child) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.calcium-troops-table th {
+    text-align: center;
+}
+
+.calcium-troops-table th:first-child {
+    text-align: left;
+}
+
+.calcium-troops-table th:not(:first-child) {
+    text-align: right;
+}
+
+.calcium-stat-boosted {
+    color: #39ac56 !important;
+    font-weight: 700;
 }
 
 ::-webkit-scrollbar {
